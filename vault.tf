@@ -7,21 +7,22 @@
 
 # Vault GCP service account
 # TODO: limit this to just the vault storage bucket
-resource "google_service_account" "sa-name" {
+resource "google_service_account" "vault-sa" {
   account_id = "sa-vault-admin-storage"
   display_name = "Vault Storage Admin"
   create_ignore_already_exists = true
 }
 
-resource "google_project_iam_member" "firestore_owner_binding" {
+resource "google_project_iam_member" "vault_service" {
   project = var.gcp_project
   role    = "roles/storage.objectAdmin"
-  member  = "serviceAccount:${google_service_account.sa-name.email}"
+  member  = "serviceAccount:${google_service_account.vault-sa.email}"
 }
 
 
-# Vault storage container
-resource "google_storage_bucket" "auto-expire" {
+# Vault google cloud storage
+# https://developer.hashicorp.com/vault/docs/configuration/storage/google-cloud-storage
+resource "google_storage_bucket" "vault_storage" {
   name          = var.vault_storage_bucket
   location      = "US"
   force_destroy = true
@@ -29,16 +30,29 @@ resource "google_storage_bucket" "auto-expire" {
   public_access_prevention = "enforced"
 }
 
-
-
-# Vault google cloud storage
-# https://developer.hashicorp.com/vault/docs/configuration/storage/google-cloud-storage
-
-
 # Vault cloud run container
 locals {
   vault_container_name = "vault-core"
+  vault_key_ring_name = "vault-keys"
+  vault_key_name = "vault-key"
 }
+
+
+# Vault key
+# Create a KMS key ring
+resource "google_kms_key_ring" "vault_key_ring" {
+   project  = "${var.gcp_project}"
+   name     = "${local.vault_key_ring_name}"
+   location = "${var.gcp_region}"
+}
+
+# Create a crypto key for the key ring
+resource "google_kms_crypto_key" "vault_key" {
+   name            = "${local.vault_key_name}"
+   key_ring        = google_kms_key_ring.vault_key_ring.id
+   rotation_period = "100000s"
+}
+
 
 resource "google_cloud_run_service" "vault-core" {
   name     = "vault-core"
@@ -51,7 +65,7 @@ resource "google_cloud_run_service" "vault-core" {
 
   template {
     spec {
-      service_account_name = google_service_account.sa-name.email
+      service_account_name = google_service_account.vault-sa.email
       containers {
         name = local.vault_container_name
         image = var.vault_container_image
@@ -75,6 +89,12 @@ resource "google_cloud_run_service" "vault-core" {
           listener "tcp" {
             address       = "0.0.0.0:8200"
             tls_disable   = true
+          }
+          seal "gcpckms" {
+            project     = "${var.gcp_project}"
+            region      = "${var.gcp_region}"
+            key_ring    = "${local.vault_key_ring_name}"
+            crypto_key  = "${local.vault_key_name}"
           }
           EOT
         }
@@ -100,16 +120,41 @@ resource "google_cloud_run_service" "vault-core" {
   ]
 }
 
+# Vault-sa role bindings
+resource "google_kms_key_ring_iam_binding" "vault_iam_kms_binding" {
+   key_ring_id = "${google_kms_key_ring.vault_key_ring.id}"
+   role = "roles/owner"
+
+   members = [
+     "serviceAccount:${google_service_account.vault-sa.email}",
+   ]
+}
+
 resource "google_cloud_run_service_iam_binding" "no-auth-required" {
   location = google_cloud_run_service.vault-core.location
   service  = google_cloud_run_service.vault-core.name
   role     = "roles/run.invoker"
+  
   members = [
     "allUsers"
   ]
 }
 
 # Vault DNS
+data "google_dns_managed_zone" "lab-domain" {
+  name = replace(var.lab_domain, ".", "-")
+}
+
+resource "google_dns_record_set" "vault-cname" {
+  name = "${local.vault_fqdn}."
+  type = "CNAME"
+  ttl  = 300
+
+  managed_zone = data.google_dns_managed_zone.lab-domain.name
+
+  rrdatas = ["ghs.googlehosted.com."]
+}
+
 resource "google_cloud_run_domain_mapping" "vault-domain" {
   location = google_cloud_run_service.vault-core.location
   name     = local.vault_fqdn
