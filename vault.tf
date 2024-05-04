@@ -20,9 +20,16 @@ resource "google_project_iam_member" "vault_service" {
 }
 
 
+# Stateful way to replace whole vault
+resource "null_resource" "replace_vault_and_data" {
+}
+
+
 # Vault google cloud storage
 # https://developer.hashicorp.com/vault/docs/configuration/storage/google-cloud-storage
 resource "google_storage_bucket" "vault_storage" {
+  depends_on = [null_resource.replace_vault_and_data]
+
   name          = var.vault_storage_bucket
   location      = "US"
   force_destroy = true
@@ -30,21 +37,23 @@ resource "google_storage_bucket" "vault_storage" {
   public_access_prevention = "enforced"
 }
 
-# Vault cloud run container
 locals {
   vault_container_name = "vault-core"
-  vault_key_ring_name = "vault-keys"
-  vault_key_name = "vault-key"
+  vault_key_ring_name = "vault-keys-v2uwk"
+  vault_key_name = "vault-key-dw1t1r"
 }
 
 
 # Vault key
 # Create a KMS key ring
+# terraform import google_kms_key_ring.vault_key_ring ${var.gcp_project}/${var.gcp_region}/${local.vault_key_ring_name}
+# terraform import google_kms_key_ring.vault_key_ring galaxygridlabs/us-east4/vault-keys-v2uwk
 resource "google_kms_key_ring" "vault_key_ring" {
    project  = "${var.gcp_project}"
    name     = "${local.vault_key_ring_name}"
    location = "${var.gcp_region}"
 }
+
 
 # Create a crypto key for the key ring
 resource "google_kms_crypto_key" "vault_key" {
@@ -55,6 +64,11 @@ resource "google_kms_crypto_key" "vault_key" {
 
 
 resource "google_cloud_run_service" "vault-core" {
+  depends_on = [
+    null_resource.replace_vault_and_data,
+    google_project_service.cloud_run_api
+  ]
+
   name     = "vault-core"
   location = var.gcp_region
 
@@ -96,6 +110,7 @@ resource "google_cloud_run_service" "vault-core" {
             key_ring    = "${local.vault_key_ring_name}"
             crypto_key  = "${local.vault_key_name}"
           }
+
           EOT
         }
 
@@ -115,9 +130,6 @@ resource "google_cloud_run_service" "vault-core" {
   }
   autogenerate_revision_name = true
 
-  depends_on = [
-    google_project_service.cloud_run_api,
-  ]
 }
 
 # Vault-sa role bindings
