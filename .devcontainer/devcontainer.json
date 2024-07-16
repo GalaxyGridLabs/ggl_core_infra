@@ -1,0 +1,34 @@
+{
+	"name": "Go",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"args": {
+			"GO_VARIANT": "1.20.2-buster"
+		}
+	},
+
+	"customizations": {
+		"vscode": {
+			"settings": {
+				// GO
+				"go.toolsManagement.checkForUpdates": "local",
+				"go.useLanguageServer": true,
+				"go.gopath": "/go",
+				"go.goroot": "/usr/local/go",
+				"editor.formatOnSave": true,
+				"files.trimTrailingWhitespace": true,
+				"files.insertFinalNewline": true,
+				"files.trimFinalNewlines": true,
+
+			},
+			"extensions": [
+				"DavidAnson.vscode-markdownlint",
+				"golang.Go",
+			]
+		}
+	},
+	"remoteUser": "root",
+	"workspaceMount": "source=ggl_core_infra,target=/workspaces/ggl_core_infra,type=volume",
+	"workspaceFolder": "/workspaces/ggl_core_infra",
+	"postCreateCommand": "cd /workspaces && git clone https://github.com/GalaxyGridLabs/ggl_core_infra.git",
+}
