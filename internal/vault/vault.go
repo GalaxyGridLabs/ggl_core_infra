@@ -103,8 +103,7 @@ func NewVault(ctx *pulumi.Context, gcpProject string, gcpRegion string, resource
 			unsealkeyName := args[1]
 			vaultKeyRingName := args[2]
 			return pulumi.Sprintf(`
-
-			ui              = true
+				ui                = true
 
 				storage "gcs" {
 					bucket = "%s"
@@ -170,7 +169,7 @@ func NewVault(ctx *pulumi.Context, gcpProject string, gcpRegion string, resource
 	}
 
 	// Make vault publicly accessible
-	_, err = cloudrun.NewIamBinding(ctx, "vault-svc-public-binding", &cloudrun.IamBindingArgs{
+	published, err := cloudrun.NewIamBinding(ctx, "vault-svc-public-binding", &cloudrun.IamBindingArgs{
 		Location: service.Location,
 		Service:  service.Name,
 		Role:     pulumi.String("roles/run.invoker"),
@@ -182,12 +181,22 @@ func NewVault(ctx *pulumi.Context, gcpProject string, gcpRegion string, resource
 		return nil, err
 	}
 
+	vaultRes.Url = service.Statuses.Index(pulumi.Int(0)).Url()
+
 	ctx.RegisterResourceOutputs(vaultRes, pulumi.Map{
-		"url": service.Statuses.Index(pulumi.Int(0)).Url(),
-		"id":  pulumi.String(resourceId),
+		"url": vaultRes.Url,
+		"id":  pulumi.String(vaultRes.Id),
 	})
 
-	vaultRes.Url = service.Statuses.Index(pulumi.Int(0)).Url()
+	// Wait for the app to be published
+	published.Project.ApplyT(func(_ any) error {
+		res, err := vaultRes.VaultInit(ctx)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("res: %v\n", res)
+		return nil
+	})
 
 	return vaultRes, nil
 }
