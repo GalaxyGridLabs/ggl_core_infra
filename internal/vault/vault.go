@@ -14,8 +14,9 @@ import (
 
 type HashicorpVault struct {
 	pulumi.ResourceState
-	Id  string
-	Url pulumi.StringPtrOutput
+	Id        string
+	Url       pulumi.StringPtrOutput
+	RootToken string
 }
 
 func NewVault(ctx *pulumi.Context, gcpProject string, gcpRegion string, resourceId string) (*HashicorpVault, error) {
@@ -133,6 +134,11 @@ func NewVault(ctx *pulumi.Context, gcpProject string, gcpRegion string, resource
 	service, err := cloudrun.NewService(ctx, "vault", &cloudrun.ServiceArgs{
 		Location: pulumi.String("us-central1"),
 		Template: cloudrun.ServiceTemplateArgs{
+			Metadata: cloudrun.ServiceTemplateMetadataArgs{
+				Annotations: &pulumi.StringMap{
+					"run.googleapis.com/cpu-throttling": pulumi.String("false"),
+				},
+			},
 			Spec: cloudrun.ServiceTemplateSpecArgs{
 				ServiceAccountName: vaultSvcAccount.Email,
 				Containers: cloudrun.ServiceTemplateSpecContainerArray{
@@ -183,11 +189,6 @@ func NewVault(ctx *pulumi.Context, gcpProject string, gcpRegion string, resource
 
 	vaultRes.Url = service.Statuses.Index(pulumi.Int(0)).Url()
 
-	ctx.RegisterResourceOutputs(vaultRes, pulumi.Map{
-		"url": vaultRes.Url,
-		"id":  pulumi.String(vaultRes.Id),
-	})
-
 	// Wait for the app to be published
 	published.Project.ApplyT(func(_ any) error {
 		res, err := vaultRes.VaultInit(ctx)
@@ -195,8 +196,14 @@ func NewVault(ctx *pulumi.Context, gcpProject string, gcpRegion string, resource
 			return err
 		}
 		fmt.Printf("res: %v\n", res)
+		vaultRes.RootToken = res.RootToken
 		return nil
 	})
 
+	ctx.RegisterResourceOutputs(vaultRes, pulumi.Map{
+		"root_token": pulumi.String(vaultRes.RootToken),
+		"url":        vaultRes.Url,
+		"id":         pulumi.String(vaultRes.Id),
+	})
 	return vaultRes, nil
 }

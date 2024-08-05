@@ -27,36 +27,13 @@ func main() {
 		project := "galaxygridlabs"
 		region := "us-central1"
 
-		// r1, err := randomId(ctx, "test1")
-		// if err != nil {
-		// 	return err
-		// }
-		// r1.ApplyT(func(id string) (*vault.HashicorpVault, error) {
-		// 	vault, err := vault.NewVault(ctx, project, region, id)
-		// 	if err != nil {
-		// 		return nil, err
-		// 	}
-		// 	return vault, nil
-		// })
-
-		// r2, err := randomId(ctx, "test2")
-		// if err != nil {
-		// 	return err
-		// }
-		// r2.ApplyT(func(id string) (*vault.HashicorpVault, error) {
-		// 	vault, err := vault.NewVault(ctx, project, region, id)
-		// 	if err != nil {
-		// 		return nil, err
-		// 	}
-		// 	return vault, nil
-		// })
-
-		vault, err := vault.NewVault(ctx, project, region, "test")
+		vault, err := vault.NewVault(ctx, project, region, "main")
 		if err != nil {
 			return err
 		}
 
 		ctx.Export("url", vault.Url)
+		ctx.Export("token", pulumi.String(vault.RootToken))
 
 		return nil
 	})
