@@ -32,8 +32,8 @@ func main() {
 			return err
 		}
 
-		ctx.Export("url", vault.Url)
-		ctx.Export("token", pulumi.String(vault.RootToken))
+		ctx.Export("token", vault["root_token"])
+		ctx.Export("url", vault["url"])
 
 		return nil
 	})

@@ -1,9 +1,13 @@
 package vault
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 
+	"github.com/pulumi/pulumi-command/sdk/go/command/local"
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/cloudrun"
+	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/cloudrunv2"
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/kms"
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/projects"
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/serviceaccount"
@@ -16,10 +20,16 @@ type HashicorpVault struct {
 	pulumi.ResourceState
 	Id        string
 	Url       pulumi.StringPtrOutput
-	RootToken string
+	IntOutput pulumi.Map
 }
 
-func NewVault(ctx *pulumi.Context, gcpProject string, gcpRegion string, resourceId string) (*HashicorpVault, error) {
+type InitResponse struct {
+	Keys       []string `json:"keys"`
+	KeysBase64 []string `json:"keys_base64"`
+	RootToken  string   `json:"root_token"`
+}
+
+func NewVault(ctx *pulumi.Context, gcpProject string, gcpRegion string, resourceId string) (pulumi.Map, error) {
 
 	vaultRes := &HashicorpVault{
 		Id: resourceId,
@@ -124,47 +134,43 @@ func NewVault(ctx *pulumi.Context, gcpProject string, gcpRegion string, resource
 		},
 	).(pulumi.StringInput)
 
-	vaultConfig := &cloudrun.ServiceTemplateSpecContainerEnvArgs{
+	vaultConfig := &cloudrunv2.ServiceTemplateContainerEnvArgs{
 		Name:  pulumi.String("VAULT_LOCAL_CONFIG"),
 		Value: configValue,
 	}
 	// 						Image: pulumi.String("docker.io/hashicorp/vault:1.17.2@sha256:aaaedf0b3b34560157cc7c06f50f794eb7baa071165f2eed4db94b44db901806"),
 
 	// Create a Cloud Run service definition.
-	service, err := cloudrun.NewService(ctx, "vault", &cloudrun.ServiceArgs{
+	service, err := cloudrunv2.NewService(ctx, "vault", &cloudrunv2.ServiceArgs{
 		Location: pulumi.String("us-central1"),
-		Template: cloudrun.ServiceTemplateArgs{
-			Metadata: cloudrun.ServiceTemplateMetadataArgs{
-				Annotations: &pulumi.StringMap{
-					"run.googleapis.com/cpu-throttling": pulumi.String("false"),
-				},
+		Template: cloudrunv2.ServiceTemplateArgs{
+			Annotations: &pulumi.StringMap{
+				"run.googleapis.com/cpu-throttling": pulumi.String("false"),
 			},
-			Spec: cloudrun.ServiceTemplateSpecArgs{
-				ServiceAccountName: vaultSvcAccount.Email,
-				Containers: cloudrun.ServiceTemplateSpecContainerArray{
-					cloudrun.ServiceTemplateSpecContainerArgs{
-						Image: pulumi.String("docker.io/hashicorp/vault:1.16.2@sha256:e139ff28c23e1f22a6e325696318141259b177097d8e238a3a4c5b84862fadd8"),
-						Resources: cloudrun.ServiceTemplateSpecContainerResourcesArgs{
-							Limits: pulumi.ToStringMap(map[string]string{
-								"memory": "512Mi",
-								"cpu":    "1",
-							}),
+			ServiceAccount: vaultSvcAccount.Email,
+			Containers: cloudrunv2.ServiceTemplateContainerArray{
+				cloudrunv2.ServiceTemplateContainerArgs{
+					Image: pulumi.String("docker.io/hashicorp/vault:1.16.2@sha256:e139ff28c23e1f22a6e325696318141259b177097d8e238a3a4c5b84862fadd8"),
+					Resources: cloudrunv2.ServiceTemplateContainerResourcesArgs{
+						Limits: pulumi.ToStringMap(map[string]string{
+							"memory": "512Mi",
+							"cpu":    "1",
+						}),
+					},
+					Ports: cloudrunv2.ServiceTemplateContainerPortArray{
+						cloudrunv2.ServiceTemplateContainerPortArgs{
+							ContainerPort: pulumi.Int(8200),
 						},
-						Ports: cloudrun.ServiceTemplateSpecContainerPortArray{
-							cloudrun.ServiceTemplateSpecContainerPortArgs{
-								ContainerPort: pulumi.Int(8200),
-							},
+					},
+					Args: &pulumi.StringArray{
+						pulumi.String("server"),
+					},
+					Envs: cloudrunv2.ServiceTemplateContainerEnvArray{
+						&cloudrunv2.ServiceTemplateContainerEnvArgs{
+							Name:  pulumi.String("SKIP_SETCAP"),
+							Value: pulumi.String("true"),
 						},
-						Args: &pulumi.StringArray{
-							pulumi.String("server"),
-						},
-						Envs: cloudrun.ServiceTemplateSpecContainerEnvArray{
-							&cloudrun.ServiceTemplateSpecContainerEnvArgs{
-								Name:  pulumi.String("SKIP_SETCAP"),
-								Value: pulumi.String("true"),
-							},
-							vaultConfig,
-						},
+						vaultConfig,
 					},
 				},
 			},
@@ -187,23 +193,53 @@ func NewVault(ctx *pulumi.Context, gcpProject string, gcpRegion string, resource
 		return nil, err
 	}
 
-	vaultRes.Url = service.Statuses.Index(pulumi.Int(0)).Url()
+	vaultRes.Url = pulumi.StringPtrOutput(service.Uri)
 
-	// Wait for the app to be published
-	published.Project.ApplyT(func(_ any) error {
-		res, err := vaultRes.VaultInit(ctx)
-		if err != nil {
-			return err
-		}
-		fmt.Printf("res: %v\n", res)
-		vaultRes.RootToken = res.RootToken
-		return nil
-	})
+	// Wait for the app to be created and published
+	rootToken := pulumi.All(published.Project, service.Uri).ApplyT(
+		func(args []interface{}) pulumi.StringOutput {
+			uri := args[1]
 
-	ctx.RegisterResourceOutputs(vaultRes, pulumi.Map{
-		"root_token": pulumi.String(vaultRes.RootToken),
+			initPayload := `{
+	"recovery_shares": 5,
+	"recovery_threshold": 3,
+	"stored_shares": 5
+}`
+
+			cmdRes, err := local.NewCommand(ctx, resourceId, &local.CommandArgs{
+				Create: pulumi.String(fmt.Sprintf("curl -X POST --data '%s' %s/v1/sys/init", initPayload, uri)),
+			})
+			if err != nil {
+				return pulumi.StringOutput{}
+			}
+
+			cmdRes.Stderr.ApplyT(func(e string) error {
+				log.Printf("Init errors: %s\n", e)
+				return nil
+			})
+
+			out := cmdRes.Stdout.ApplyT(func(o string) (string, error) {
+				fmt.Printf("output: %s\n", o)
+
+				var initResponse InitResponse
+
+				if err := json.Unmarshal([]byte(o), &initResponse); err != nil {
+					log.Println(err)
+					return o, nil
+				}
+
+				return initResponse.RootToken, nil
+			}).(pulumi.StringOutput)
+
+			return out
+		},
+	).(pulumi.StringOutput)
+
+	mapRef := pulumi.Map{
+		"root_token": rootToken,
 		"url":        vaultRes.Url,
 		"id":         pulumi.String(vaultRes.Id),
-	})
-	return vaultRes, nil
+	}
+	ctx.RegisterResourceOutputs(vaultRes, mapRef)
+	return mapRef, nil
 }
