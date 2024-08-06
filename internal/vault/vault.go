@@ -19,8 +19,7 @@ import (
 type HashicorpVault struct {
 	pulumi.ResourceState
 	Id        string
-	Url       pulumi.StringPtrOutput
-	IntOutput pulumi.Map
+	MapOutput pulumi.Map
 }
 
 type InitResponse struct {
@@ -29,11 +28,11 @@ type InitResponse struct {
 	RootToken  string   `json:"root_token"`
 }
 
-func NewVault(ctx *pulumi.Context, gcpProject string, gcpRegion string, resourceId string) (pulumi.Map, error) {
-
+func NewVault(ctx *pulumi.Context, gcpProject string, gcpRegion string, resourceId string) (*HashicorpVault, error) {
 	vaultRes := &HashicorpVault{
 		Id: resourceId,
 	}
+
 	err := ctx.RegisterComponentResource(fmt.Sprintf("pkg:index:gcp:HashicorpVault:%s", resourceId), "vault", vaultRes)
 	if err != nil {
 		return nil, err
@@ -193,10 +192,9 @@ func NewVault(ctx *pulumi.Context, gcpProject string, gcpRegion string, resource
 		return nil, err
 	}
 
-	vaultRes.Url = pulumi.StringPtrOutput(service.Uri)
-
 	// Wait for the app to be created and published
 	rootToken := pulumi.All(published.Project, service.Uri).ApplyT(
+		// Initialize pulumi
 		func(args []interface{}) pulumi.StringOutput {
 			uri := args[1]
 
@@ -207,20 +205,20 @@ func NewVault(ctx *pulumi.Context, gcpProject string, gcpRegion string, resource
 }`
 
 			cmdRes, err := local.NewCommand(ctx, resourceId, &local.CommandArgs{
-				Create: pulumi.String(fmt.Sprintf("curl -X POST --data '%s' %s/v1/sys/init", initPayload, uri)),
+				Create: pulumi.String(fmt.Sprintf("curl -s -X POST --data '%s' %s/v1/sys/init", initPayload, uri)),
 			})
 			if err != nil {
 				return pulumi.StringOutput{}
 			}
 
 			cmdRes.Stderr.ApplyT(func(e string) error {
-				log.Printf("Init errors: %s\n", e)
+				if len(e) > 0 {
+					log.Printf("Init errors: %s\n", e)
+				}
 				return nil
 			})
 
 			out := cmdRes.Stdout.ApplyT(func(o string) (string, error) {
-				fmt.Printf("output: %s\n", o)
-
 				var initResponse InitResponse
 
 				if err := json.Unmarshal([]byte(o), &initResponse); err != nil {
@@ -235,11 +233,10 @@ func NewVault(ctx *pulumi.Context, gcpProject string, gcpRegion string, resource
 		},
 	).(pulumi.StringOutput)
 
-	mapRef := pulumi.Map{
+	vaultRes.MapOutput = pulumi.Map{
 		"root_token": rootToken,
-		"url":        vaultRes.Url,
-		"id":         pulumi.String(vaultRes.Id),
+		"url":        service.Uri,
 	}
-	ctx.RegisterResourceOutputs(vaultRes, mapRef)
-	return mapRef, nil
+	ctx.RegisterResourceOutputs(vaultRes, vaultRes.MapOutput)
+	return vaultRes, nil
 }

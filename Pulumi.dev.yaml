@@ -1,3 +1,6 @@
 encryptionsalt: v1:hYgRpPpQn/Q=:v1:t5ZhPpNP3gX8qo4B:JSYqDYLZsmckxnFJnWWQiL2kzCd45A==
 config:
   gcp:project: galaxygridlabs
+  vault:address: https://vault-5247878-fibucnvx2a-uc.a.run.app
+  vault:token:
+    secure: v1:o3sFTYbqOAdwefEI:mamr+E9DVS9L10+Pt1gG9JCZD2MsAfSnjZUxGABZZOp0RqQihxtd/EInKEE=

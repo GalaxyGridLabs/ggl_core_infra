@@ -64,6 +64,7 @@ require (
 	github.com/pulumi/esc v0.9.1 // indirect
 	github.com/pulumi/pulumi-command/sdk v1.0.1
 	github.com/pulumi/pulumi-random/sdk/v4 v4.16.3
+	github.com/pulumi/pulumi-vault/sdk/v6 v6.2.0
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06 // indirect
