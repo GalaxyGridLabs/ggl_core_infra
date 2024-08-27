@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ggl_core_infra/internal/git"
 	"ggl_core_infra/internal/vault"
 	"log"
 
@@ -28,10 +29,22 @@ func main() {
 		project := "galaxygridlabs"
 		region := "us-central1"
 
+		// _, err := common.NewNetwork(ctx, "lab-net", project, region, "main")
+		// if err != nil {
+		// 	return err
+		// }
+
 		vaultMain, err := vault.NewVault(ctx, project, region, "main")
 		if err != nil {
 			return err
 		}
+
+		gitMain, err := git.NewGitea(ctx, project, region, "main")
+		if err != nil {
+			return err
+		}
+
+		ctx.Export("git_url", gitMain.MapOutput["url"])
 
 		// Stage 2
 		vaultMain.MapOutput.ToMapOutput().ApplyT(func(t map[string]interface{}) error {
@@ -43,10 +56,10 @@ pulumi config set vault:address %s
 pulumi config set vault:token %s --secret
 `, t["url"].(string), t["root_token"].(string))
 
-			_, err := vaultMain.NewKv(ctx, "test/test/123", "A Test KV")
-			if err != nil {
-				return err
-			}
+			// _, err := vaultMain.NewKv(ctx, "admin/core/example", "A Test KV")
+			// if err != nil {
+			// 	return err
+			// }
 
 			return nil
 		})

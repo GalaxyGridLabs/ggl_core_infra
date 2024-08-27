@@ -1,0 +1,7 @@
+#!/bin/bash
+
+pulumi config set gcp:zone us-central1-a
+pulumi config set gcp:region us-central1
+pulumi config set gcp:project galaxygridlabs
+
+echo "Enter 'PULUMI_CONFIG_PASSPHRASE':" && read -s PULUMI_CONFIG_PASSPHRASE && export PULUMI_CONFIG_PASSPHRASE

@@ -1,6 +1,8 @@
-encryptionsalt: v1:hYgRpPpQn/Q=:v1:t5ZhPpNP3gX8qo4B:JSYqDYLZsmckxnFJnWWQiL2kzCd45A==
+encryptionsalt: v1:JHVP+8orj+g=:v1:/YRhfF1JW6ggy7Gx:Mf6lIjSMEOZcTKLhIjova+jB58grWw==
 config:
   gcp:project: galaxygridlabs
-  vault:address: https://vault-5247878-fibucnvx2a-uc.a.run.app
+  gcp:region: us-central1
+  gcp:zone: us-central1-a
+  vault:address: https://vault-512391d-fibucnvx2a-uc.a.run.app
   vault:token:
-    secure: v1:o3sFTYbqOAdwefEI:mamr+E9DVS9L10+Pt1gG9JCZD2MsAfSnjZUxGABZZOp0RqQihxtd/EInKEE=
+    secure: v1:mqf9EcRdy12UsKr/:6WNnmS7MoHdDM5qT73rBvumjsGodRHKNwcaB6HyUoMTxMLa4W+naPkpd324=

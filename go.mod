@@ -6,10 +6,13 @@ toolchain go1.22.3
 
 require (
 	github.com/pulumi/pulumi-gcp/sdk/v7 v7.23.0
-	github.com/pulumi/pulumi/sdk/v3 v3.122.0
+	github.com/pulumi/pulumi/sdk/v3 v3.129.0
 )
 
-require github.com/BurntSushi/toml v1.2.1 // indirect
+require (
+	github.com/BurntSushi/toml v1.2.1 // indirect
+	github.com/pulumi/pulumi-cloudinit/sdk v1.4.5 // indirect
+)
 
 require (
 	dario.cat/mergo v1.0.0 // indirect

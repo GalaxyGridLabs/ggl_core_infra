@@ -9,7 +9,7 @@ type KeyValueSecrets struct {
 	MountName string
 }
 
-func (v HashicorpVault) NewKv(ctx *pulumi.Context, name string, desc string) (*vault.Mount, error) {
+func (v *HashicorpVault) NewKv(ctx *pulumi.Context, name string, desc string) (*vault.Mount, error) {
 	mount, err := vault.NewMount(ctx, name, &vault.MountArgs{
 		Path: pulumi.String(name),
 		Type: pulumi.String("kv-v2"),
@@ -18,7 +18,7 @@ func (v HashicorpVault) NewKv(ctx *pulumi.Context, name string, desc string) (*v
 			"type":    pulumi.Any("kv-v2"),
 		},
 		Description: pulumi.String(desc),
-	})
+	}, pulumi.Parent(v))
 	if err != nil {
 		return &vault.Mount{}, err
 	}
