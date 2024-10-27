@@ -29,12 +29,18 @@ func randomId(ctx *pulumi.Context, name string) (pulumi.StringOutput, error) {
 }
 
 func setupVault(ctx *pulumi.Context, project string, region string, labZone string) (*vault.HashicorpVault, error) {
-	vaultMain, err := vault.NewVault(ctx, project, region, "main")
+	vaultCname, err := common.NewDnsRecord(ctx, "vault-dns", "vault", labZone, "CNAME", pulumi.String("ghs.googlehosted.com."))
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: add DNS mapping
+	tmpDomain := strings.TrimSuffix(vaultCname.DnsName, ".")
+	tmpDomain = strings.TrimPrefix(tmpDomain, ".")
+	vaultMain, err := vault.NewVault(ctx, project, region, "main", tmpDomain)
+	if err != nil {
+		return nil, err
+	}
+
 	cloudRunDns := vaultMain.MapOutput["url"].(pulumi.StringInput).ToStringOutput().ApplyT(func(u string) string {
 		parsed, _ := url.Parse(u)
 		var res_host string
@@ -46,12 +52,7 @@ func setupVault(ctx *pulumi.Context, project string, region string, labZone stri
 		return res_host
 	}).(pulumi.StringInput)
 
-	vaultCname, err := common.NewDnsRecord(ctx, "vault-dns", "vault2", labZone, "CNAME", cloudRunDns)
-	if err != nil {
-		return nil, err
-	}
-
-	ctx.Export("private_vault_url", vaultMain.MapOutput["url"])
+	ctx.Export("private_vault_url", cloudRunDns)
 	ctx.Export("public_vault_domain", pulumi.String(vaultCname.DnsName))
 
 	return vaultMain, nil

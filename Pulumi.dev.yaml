@@ -3,6 +3,6 @@ config:
   gcp:project: galaxygridlabs
   gcp:region: us-central1
   gcp:zone: us-central1-a
-  vault:address: https://vault-512391d-fibucnvx2a-uc.a.run.app
+  vault:address: https://vault-dcf9ab6-fibucnvx2a-uc.a.run.app
   vault:token:
-    secure: v1:mqf9EcRdy12UsKr/:6WNnmS7MoHdDM5qT73rBvumjsGodRHKNwcaB6HyUoMTxMLa4W+naPkpd324=
+    secure: v1:Vh2MLqG24o1VJRIz:M2AJ/pp0e3va3Ngsuf9qp5K/YnoKaxiYtxNqRIGj/GnvQarvNEM5fVvCkFE=

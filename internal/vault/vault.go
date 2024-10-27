@@ -28,7 +28,9 @@ type InitResponse struct {
 	RootToken  string   `json:"root_token"`
 }
 
-func NewVault(ctx *pulumi.Context, gcpProject string, gcpRegion string, resourceId string) (*HashicorpVault, error) {
+func NewVault(ctx *pulumi.Context, gcpProject string, gcpRegion string, resourceId string, domain string) (*HashicorpVault, error) {
+	log.Printf("debug domain: %s\n", domain)
+
 	vaultRes := &HashicorpVault{
 		Id: resourceId,
 	}
@@ -48,8 +50,9 @@ func NewVault(ctx *pulumi.Context, gcpProject string, gcpRegion string, resource
 	}
 
 	unsealKey, err := kms.NewCryptoKey(ctx, "vault-key", &kms.CryptoKeyArgs{
-		KeyRing:        vaultKeyRing.ID(),
-		RotationPeriod: pulumi.String("100000s"),
+		KeyRing:                  vaultKeyRing.ID(),
+		RotationPeriod:           pulumi.String("2592000s"),
+		DestroyScheduledDuration: pulumi.String("86400s"),
 	}, pulumi.Parent(vaultRes))
 	if err != nil {
 		return nil, err
@@ -137,8 +140,6 @@ func NewVault(ctx *pulumi.Context, gcpProject string, gcpRegion string, resource
 		Name:  pulumi.String("VAULT_LOCAL_CONFIG"),
 		Value: configValue,
 	}
-	// 						Image: pulumi.String("docker.io/hashicorp/vault:1.17.2@sha256:aaaedf0b3b34560157cc7c06f50f794eb7baa071165f2eed4db94b44db901806"),
-
 	// Create a Cloud Run service definition.
 	service, err := cloudrunv2.NewService(ctx, "vault", &cloudrunv2.ServiceArgs{
 		Location: pulumi.String("us-central1"),
@@ -149,7 +150,7 @@ func NewVault(ctx *pulumi.Context, gcpProject string, gcpRegion string, resource
 			ServiceAccount: vaultSvcAccount.Email,
 			Containers: cloudrunv2.ServiceTemplateContainerArray{
 				cloudrunv2.ServiceTemplateContainerArgs{
-					Image: pulumi.String("docker.io/hashicorp/vault:1.16.2@sha256:e139ff28c23e1f22a6e325696318141259b177097d8e238a3a4c5b84862fadd8"),
+					Image: pulumi.String("docker.io/hashicorp/vault:1.18.0@sha256:e2da7099950443e234ed699940fabcdc44b5babe33adfb459e189a63b7bb50d7"),
 					Resources: cloudrunv2.ServiceTemplateContainerResourcesArgs{
 						Limits: pulumi.ToStringMap(map[string]string{
 							"memory": "512Mi",
@@ -188,6 +189,21 @@ func NewVault(ctx *pulumi.Context, gcpProject string, gcpRegion string, resource
 			pulumi.String("allUsers"),
 		},
 	}, pulumi.Parent(vaultRes))
+	if err != nil {
+		return nil, err
+	}
+
+	// Create domain mapping
+	_, err = cloudrun.NewDomainMapping(ctx, "vault-domain-mapping", &cloudrun.DomainMappingArgs{
+		Location: service.Location,
+		Name:     pulumi.String(domain),
+		Metadata: &cloudrun.DomainMappingMetadataArgs{
+			Namespace: pulumi.String(gcpProject),
+		},
+		Spec: &cloudrun.DomainMappingSpecArgs{
+			RouteName: service.Name,
+		},
+	})
 	if err != nil {
 		return nil, err
 	}
