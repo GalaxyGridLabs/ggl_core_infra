@@ -55,10 +55,10 @@ func NewGitea(ctx *pulumi.Context, gcpProject string, gcpRegion string, resource
 spec:
   containers:
   - name: gitea
-    image: docker.io/gitea/gitea:1.22.1@sha256:1b9dcae47e821b8dd75c1e48d13677c428624d02e683badb461e4947300e7d19
+    image: docker.io/gitea/gitea:1.22.3@sha256:76f516a1a8c27e8f8e9773639bf337c0176547a2d42a80843e3f2536787341c6
     env:
     - name: DISABLE_REGISTRATION
-      value: 'true'
+      value: 'false'
     - name: USER_UID
       value: '1000'
     - name: USER_GID

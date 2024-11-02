@@ -11,7 +11,16 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
+	github.com/gofrs/flock v0.7.1 // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
+	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/pulumi/pulumi-cloudinit/sdk v1.4.5 // indirect
+	github.com/pulumi/pulumi/sdk v1.14.0 // indirect
+	github.com/src-d/gcfg v1.4.0 // indirect
+	gopkg.in/src-d/go-billy.v4 v4.3.2 // indirect
+	gopkg.in/src-d/go-git.v4 v4.13.1 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
+	sourcegraph.com/sourcegraph/appdash v0.0.0-20190731080439-ebfcffb1b5c0 // indirect
 )
 
 require (
@@ -67,6 +76,7 @@ require (
 	github.com/pulumi/esc v0.9.1 // indirect
 	github.com/pulumi/pulumi-command/sdk v1.0.1
 	github.com/pulumi/pulumi-random/sdk/v4 v4.16.3
+	github.com/pulumi/pulumi-vault/sdk v0.0.0-20200414154029-8b4f903bc8fd
 	github.com/pulumi/pulumi-vault/sdk/v6 v6.2.0
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect

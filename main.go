@@ -35,8 +35,20 @@ func setupVault(ctx *pulumi.Context, project string, region string, labZone stri
 	}
 
 	tmpDomain := strings.TrimSuffix(vaultCname.DnsName, ".")
-	tmpDomain = strings.TrimPrefix(tmpDomain, ".")
-	vaultMain, err := vault.NewVault(ctx, project, region, "main", tmpDomain)
+	trimmedDns := strings.TrimPrefix(tmpDomain, ".")
+	vaultMain, err := vault.NewVault(ctx, project, region, "main", trimmedDns)
+	if err != nil {
+		return nil, err
+	}
+
+	// Setup OIDC with google
+	err = vaultMain.SetupOidcAuthBackend(
+		ctx,
+		"oidc-test",
+		"Test OIDC provider",
+		trimmedDns,
+		"1051431507099-u73qbnpdm85ft4ies07bvsl96el91r9u.apps.googleusercontent.com",
+		"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")
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +125,11 @@ pulumi config set vault:token %s --secret
 			// 	return err
 			// }
 
-			// Setup OIDC with google
+			// Setup gitea oidc provider
+			// _, err := vaultMain.NewProviderOidc(ctx, "gitea", "http://git.galaxygridlabs.com:3000/user/oauth2/vault/callback")
+			// if err != nil {
+			// 	return err
+			// }
 
 			_, err = setupGitea(ctx, project, region, labZone)
 			if err != nil {
