@@ -1,0 +1,37 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/python
+{
+	"name": "GGL Core Pulumi",
+	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+	"image": "mcr.microsoft.com/devcontainers/python:1-3.12-bullseye",
+	"features": {
+		"ghcr.io/dhoeric/features/google-cloud-cli:1": {
+			"installGkeGcloudAuthPlugin": true
+		},
+		"ghcr.io/devcontainers-extra/features/pulumi:1": {
+			"bashCompletion": true,
+			"version": "3.43.0"
+		},
+		"ghcr.io/devcontainers-extra/features/pylint:2": {
+			"version": "latest"
+		},
+		"ghcr.io/meaningful-ooo/devcontainer-features/fish:1": {
+			"fisher": "true"
+		}
+	},
+
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	// "postCreateCommand": "pip3 install --user -r requirements.txt",
+
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"DavidAnson.vscode-markdownlint",
+				"ms-python.python",
+				"pulumi.pulumi-vscode-tools",
+				"pulumi.pulumi-lsp-client"
+			]
+		}
+	}
+}
