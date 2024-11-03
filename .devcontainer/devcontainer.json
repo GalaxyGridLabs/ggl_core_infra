@@ -3,7 +3,15 @@
 {
 	"name": "GGL Core Pulumi",
 	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-	"image": "mcr.microsoft.com/devcontainers/python:1-3.12-bullseye",
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+	"runArgs": [
+		"--cap-add=SYS_PTRACE",
+		"--security-opt",
+		"seccomp=unconfined"
+	],
+
 	"features": {
 		"ghcr.io/dhoeric/features/google-cloud-cli:1": {
 			"installGkeGcloudAuthPlugin": true
@@ -32,7 +40,7 @@
 	"remoteUser": "vscode",
 	"workspaceMount": "source=ggl_core_infra,target=/workspaces/ggl_core_infra,type=volume",
 	"workspaceFolder": "/workspaces/ggl_core_infra",
-	"postCreateCommand": "install -o vscode -g vscode -D /commandhistory && install /commandhistory/ && install -o vscode -g vscode /dev/null /commandhistory/.bash_history && SNIPPET='export PROMPT_COMMAND=\"history -a\" && export HISTFILE=/commandhistory/.bash_history' && echo $SNIPPET >> '/home/vscode/.bashrc' && chown -R vscode:vscode /workspace/ && cd /workspaces && git clone https://github.com/GalaxyGridLabs/ggl_core_infra.git",
+	"postCreateCommand": "cd /workspaces && git clone https://github.com/GalaxyGridLabs/ggl_core_infra.git && chown -R vscode:vscode /workspace/",
 	"mounts": [
 		"source=ggl_core_infra-bashhistory,target=/commandhistory,type=volume"
 	]

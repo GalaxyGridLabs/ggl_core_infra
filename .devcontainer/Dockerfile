@@ -1,9 +1,6 @@
-FROM mcr.microsoft.com/devcontainers/python:3.12
-RUN apt update && apt install -y curl git apt-transport-https ca-certificates gnupg
-RUN curl -fsSL https://get.pulumi.com | sh
+FROM mcr.microsoft.com/devcontainers/python:1-3.12-bullseye
 
-# Install gcloud CLI
-RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && \
-    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg && \
-    apt-get update -y && \
-    apt-get install google-cloud-sdk -y
+RUN install -o vscode -g vscode -D /commandhistory \
+    install -o vscode -g vscode /dev/null /commandhistory/.bash_history \
+    SNIPPET='export PROMPT_COMMAND=\"history -a\" && export HISTFILE=/commandhistory/.bash_history' \
+    echo $SNIPPET >> '/home/vscode/.bashrc'
