@@ -29,6 +29,7 @@
 			]
 		}
 	},
+	"remoteUser": "vscode",
 	"workspaceMount": "source=ggl_core_infra,target=/workspaces/ggl_core_infra,type=volume",
 	"workspaceFolder": "/workspaces/ggl_core_infra",
 	"postCreateCommand": "install -o vscode -g vscode -D /commandhistory && install /commandhistory/ && install -o vscode -g vscode /dev/null /commandhistory/.bash_history && SNIPPET='export PROMPT_COMMAND=\"history -a\" && export HISTFILE=/commandhistory/.bash_history' && echo $SNIPPET >> '/home/vscode/.bashrc' && chown -R vscode:vscode /workspace/ && cd /workspaces && git clone https://github.com/GalaxyGridLabs/ggl_core_infra.git",
