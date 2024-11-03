@@ -31,7 +31,8 @@
 				"DavidAnson.vscode-markdownlint",
 				"ms-python.python",
 				"pulumi.pulumi-vscode-tools",
-				"pulumi.pulumi-lsp-client"
+				"pulumi.pulumi-lsp-client",
+				"ms-python.black-formatter"
 			]
 		}
 	},
