@@ -40,7 +40,7 @@
 	"remoteUser": "vscode",
 	"workspaceMount": "source=ggl_core_infra,target=/workspaces/ggl_core_infra,type=volume",
 	"workspaceFolder": "/workspaces/ggl_core_infra",
-	"postCreateCommand": "cd /workspaces && git clone https://github.com/GalaxyGridLabs/ggl_core_infra.git && chown -R vscode:vscode /workspace/",
+	"postCreateCommand": "cd /workspaces && git clone https://github.com/GalaxyGridLabs/ggl_core_infra.git && chown -R vscode:vscode /workspace/ && chown -R vscode:vscode /commandhistory/",
 	"mounts": [
 		"source=ggl_core_infra-bashhistory,target=/commandhistory,type=volume"
 	]
