@@ -2,7 +2,6 @@
 
 import pulumi
 
-
 def setup_vault():
     print("Setting up vault")
     # Deploy vault

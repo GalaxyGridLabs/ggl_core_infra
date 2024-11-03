@@ -57,7 +57,7 @@
 	"workspaceMount": "source=ggl_core_infra,target=/workspaces/ggl_core_infra,type=volume",
 	"workspaceFolder": "/workspaces/ggl_core_infra",
 	"postCreateCommand": {
-		"fixVolumePerms": "sudo chown -R $(whoami): /workspaces/ && sudo chown -R $(whoami): /commandhistory/ && cd /workspaces && git clone https://github.com/GalaxyGridLabs/ggl_core_infra.git"
+		"fixVolumePerms": "sudo chown -R $(whoami): /workspaces/ && sudo chown -R $(whoami): /commandhistory/ && cd /workspaces && git clone https://github.com/GalaxyGridLabs/ggl_core_infra.git && cd ggl_core_infra && python3 -m venv venv && source venv/bin/activate && pip3 install -r ./requirements.txt"
 	},	
 	"mounts": [
 		"source=ggl_core_infra-bashhistory-${devcontainerId},target=/commandhistory,type=volume"
