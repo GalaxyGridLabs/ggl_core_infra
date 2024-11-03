@@ -20,7 +20,6 @@
 		}
 	},
 
-
 	// Use 'postCreateCommand' to run commands after the container is created.
 	// "postCreateCommand": "pip3 install --user -r requirements.txt",
 
@@ -33,5 +32,11 @@
 				"pulumi.pulumi-lsp-client"
 			]
 		}
-	}
+	},
+	"workspaceMount": "source=ggl_core_infra,target=/workspaces/ggl_core_infra,type=volume",
+	"workspaceFolder": "/workspaces/ggl_core_infra",
+	"postCreateCommand": "cd /workspaces && git clone https://github.com/GalaxyGridLabs/ggl_core_infra.git",
+	"mounts": [
+		"source=ggl_core_infra-bashhistory,target=/home/vscode/.bash_history,type=volume"
+	]
 }
