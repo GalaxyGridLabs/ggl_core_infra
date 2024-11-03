@@ -27,6 +27,21 @@
 
 	"customizations": {
 		"vscode": {
+			"settings": {
+				// Formatting
+				"editor.formatOnSave": true,
+				"files.trimTrailingWhitespace": true,
+				"files.insertFinalNewline": true,
+				"files.trimFinalNewlines": true,
+				// Python formatting
+				"[python]": {
+					"editor.defaultFormatter": "ms-python.black-formatter",
+					"editor.formatOnSave": true
+				},
+				// Misc
+				"git.autofetch": true
+			},
+			// Add the IDs of extensions you want installed when the container is created.
 			"extensions": [
 				"DavidAnson.vscode-markdownlint",
 				"ms-python.python",
@@ -36,6 +51,7 @@
 			]
 		}
 	},
+
 	"containerUser": "vscode",
 	"remoteUser": "vscode",
 	"workspaceMount": "source=ggl_core_infra,target=/workspaces/ggl_core_infra,type=volume",

@@ -3,17 +3,12 @@
 import pulumi
 
 
-def setupVault():
-    print("test")
-
+def setup_vault():
+    print("Setting up vault")
+    # Deploy vault
 
 def main():
     print("Starting")
-"""
-
-    """
-# Setup vault
-
 
 if __name__ == "__main__":
     main()
