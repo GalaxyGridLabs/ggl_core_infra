@@ -9,8 +9,6 @@ def setupVault():
 
 def main():
     print("Starting")
-
-
 """
 
     """
