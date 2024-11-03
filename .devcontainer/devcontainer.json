@@ -14,14 +14,10 @@
 		},
 		"ghcr.io/devcontainers-extra/features/pylint:2": {
 			"version": "latest"
-		},
-		"ghcr.io/meaningful-ooo/devcontainer-features/fish:1": {
-			"fisher": "true"
 		}
 	},
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	// "postCreateCommand": "pip3 install --user -r requirements.txt",
 
 	"customizations": {
 		"vscode": {
@@ -35,8 +31,8 @@
 	},
 	"workspaceMount": "source=ggl_core_infra,target=/workspaces/ggl_core_infra,type=volume",
 	"workspaceFolder": "/workspaces/ggl_core_infra",
-	"postCreateCommand": "cd /workspaces && git clone https://github.com/GalaxyGridLabs/ggl_core_infra.git",
+	"postCreateCommand": "install -o vscode -g vscode -D /commandhistory && install /commandhistory/ && install -o vscode -g vscode /dev/null /commandhistory/.bash_history && SNIPPET='export PROMPT_COMMAND=\"history -a\" && export HISTFILE=/commandhistory/.bash_history' && echo $SNIPPET >> '/home/vscode/.bashrc' && chown -R vscode:vscode /workspace/ && cd /workspaces && git clone https://github.com/GalaxyGridLabs/ggl_core_infra.git",
 	"mounts": [
-		"source=ggl_core_infra-bashhistory,target=/home/vscode/.bash_history,type=volume"
+		"source=ggl_core_infra-bashhistory,target=/commandhistory,type=volume"
 	]
 }
