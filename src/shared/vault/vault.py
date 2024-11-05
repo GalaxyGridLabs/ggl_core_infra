@@ -17,7 +17,6 @@ class Vault(pulumi.ComponentResource):
         self.dns_zone = dns_zone
         super().__init__('ggl:shared/vault:Vault', name, None, opts)
 
-
         config = pulumi.Config("gcp")
         region = config.require("region")
         zone = config.require("zone")
