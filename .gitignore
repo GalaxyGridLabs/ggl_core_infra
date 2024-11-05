@@ -218,3 +218,4 @@ terraform.rc
 # End of https://www.toptal.com/developers/gitignore/api/pulumi,terraform,python
 1_core/Pulumi.dev.yaml
 1_core/Pulumi.yaml
+src/1_core/Pulumi.dev.yaml
