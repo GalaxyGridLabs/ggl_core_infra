@@ -52,6 +52,7 @@ class OIDCProvider(pulumi.ComponentResource):
         
         self.client_id = client.client_id
         self.client_secret = client.client_secret
+        self.issuer_base = f"{self.vault_address}/v1/identity/oidc/provider/{provider.name}"
 
         return
 
