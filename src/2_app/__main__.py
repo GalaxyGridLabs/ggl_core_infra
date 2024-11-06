@@ -5,6 +5,7 @@ import pulumi_vault as pvault
 
 from shared.vault.auth_method import AuthMethodJWT
 from shared.vault.oidc_provider import OIDCProvider
+from shared.git.git import Gitea
 
 def main():
     print("Starting")
@@ -25,6 +26,10 @@ def main():
     pulumi.export("client_secret", gitea_oidc.client_secret)
 
     # New gitea server
+    gitea = Gitea(
+        name="gitea",
+        subdomain="git",
+        dns_zone="galaxygridlabs-com")
 
 
 if __name__ == "__main__":
