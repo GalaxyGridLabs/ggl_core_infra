@@ -15,5 +15,12 @@ $ PYTHONPATH=.. pulumi up --stack dev
 $ pulumi config set gcp:region us-central1
 $ pulumi config set gcp:zone us-central1-a
 $ pulumi config set gcp:project galaxygridlabs
+```
 
+
+# App
+
+```bash
+$ pulumi config set vault:address https://vault.galaxygridlabs.com
+$ pulumi config set vault:token hvs..... --secret
 ```

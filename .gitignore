@@ -219,3 +219,4 @@ terraform.rc
 1_core/Pulumi.dev.yaml
 1_core/Pulumi.yaml
 src/1_core/Pulumi.dev.yaml
+src/2_app/Pulumi.dev.yaml

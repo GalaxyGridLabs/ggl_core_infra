@@ -1,23 +1,20 @@
 """A Python Pulumi program"""
 
 import pulumi
+import pulumi_vault as pvault
 
-def configure_vault():
-    print("Configuring vault")
-    # Configure Vault oauth2 auth method with google
-
-    # Configur vault policies
-
-def setup_gitea():
-    print("Setting up gitea")
-    # Setup vault oidc provider for gitea
-
-    # Generate gitea config: oidc client-id, oidc secret, admin account, misc configs.
-
-    # Deploy COS conatiner
+from shared.vault.auth_method import AuthMethodJWT
 
 def main():
     print("Starting")
+
+    # Setup vault google auth method
+    google_auth = AuthMethodJWT("google-auth","oidc")
+
+    # Setup vault oidc provider for gitea
+
+    # New gitea server
+
 
 if __name__ == "__main__":
     main()
