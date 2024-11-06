@@ -120,6 +120,7 @@ seal "gcpckms" {{
         cloudrun_service = gcp.cloudrunv2.Service(
             resource_name=name,
             location=region,
+            deletion_protection=False,
             template={
                 "containers": [{
                     "image": VAULT_IMAGE,
@@ -167,7 +168,8 @@ seal "gcpckms" {{
             },
             spec={
                 "route_name": cloudrun_service.name
-            })
+            },
+            opts=pulumi.ResourceOptions(parent=self))
 
         # Use private domain and custom curl to init vault
         # init_output = pulumi.Output.all(cloudrun_service.uri).apply(
