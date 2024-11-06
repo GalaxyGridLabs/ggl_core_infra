@@ -20,7 +20,7 @@ def main():
     # Setup vault oidc provider for gitea
     gitea_oidc = OIDCProvider(
         name="gitea-auth",
-        redirect_uris=["https://git.galaxygridlabs.com/oidc/callback"])
+        redirect_uris=["http://localhost:3000/user/oauth2/vault/callback"])
 
     pulumi.export("client_id", gitea_oidc.client_id)
     pulumi.export("client_secret", gitea_oidc.client_secret)
