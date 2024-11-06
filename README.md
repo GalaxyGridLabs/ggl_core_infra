@@ -23,4 +23,7 @@ $ pulumi config set gcp:project galaxygridlabs
 ```bash
 $ pulumi config set vault:address https://vault.galaxygridlabs.com
 $ pulumi config set vault:token hvs..... --secret
+
+$ pulumi config set ggl:client_id 1051431507099-i2d83aiogb0c349go9si6j8ahuv5p6ml.apps.googleusercontent.com
+$ pulumi config set ggl:client_secret ... --secret
 ```

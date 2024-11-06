@@ -6,6 +6,8 @@ class AuthMethodJWT(pulumi.ComponentResource):
     def __init__(self,
                 name: str,
                 path: str,
+                desc: str,
+                discover_url: str,
                 opts = None):
 
         super().__init__('ggl:shared/vault:AuthMethodJWT', name, None, opts)
@@ -15,20 +17,20 @@ class AuthMethodJWT(pulumi.ComponentResource):
         self.path = path
 
         # Set and validate vars from config
+        vault_config = pulumi.Config("vault")
+        self.vault_address = vault_config.require("address")    
+
         config = pulumi.Config("ggl")
         client_id = config.require("client_id")
         client_secret = config.require("client_secret")    
-
-        vault_config = pulumi.Config("vault")
-        self.vault_address = vault_config.require("address")    
 
 
         # Setup vault google auth method
         oidc_default_role = "user"
         google_auth_method = pvault.jwt.AuthBackend(
             resource_name=name,
-            description="Authenticate to lab using GSuite account",
-            oidc_discovery_url="https://accounts.google.com",
+            description=desc,
+            oidc_discovery_url=discover_url,
             path=self.path,
             type="oidc",
             default_role=oidc_default_role,
@@ -72,8 +74,8 @@ class AuthMethodJWT(pulumi.ComponentResource):
         return self.__vault_address
     
     @vault_address.setter
-    def path(self, value: str):
+    def vault_address(self, value: str):
         regex = r"https:\/\/[a-z0-9-.]+"
-        assert re.fullmatch(regex, value) is not None, f"vault_address must match {regex}"
+        assert re.fullmatch(regex, value) is not None, f"vault_address {value} must match {regex}"
         self.__vault_address = value
 
