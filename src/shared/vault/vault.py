@@ -170,14 +170,14 @@ seal "gcpckms" {{
             })
 
         # Use private domain and custom curl to init vault
-        init_output = pulumi.Output.all(cloudrun_service.uri).apply(
-            lambda uri: self.init(uri[0])
-        )
+        # init_output = pulumi.Output.all(cloudrun_service.uri).apply(
+        #     lambda uri: self.init(uri[0])
+        # )
 
         # Store public url, and root_token
         self.public_url = dns.name.apply(lambda domain: f"https://{domain.removesuffix('.')}")
         self.private_url = cloudrun_service.uri
-        self.root_token = init_output.apply(lambda res: res["root_token"])
+        # self.root_token = init_output.apply(lambda res: res["root_token"])
 
         return
 
