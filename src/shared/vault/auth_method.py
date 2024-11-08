@@ -27,6 +27,7 @@ class AuthMethodJWT(pulumi.ComponentResource):
         sa_secret = config.require("vault_sa_account_json")
         sa_email = json.loads(sa_secret)["client_email"]
         gsuite_admin = config.require("gsuite_admin")
+        gsuite_domain = config.require("gsuite_domain")
 
 
         # Setup vault google auth method
@@ -45,7 +46,7 @@ class AuthMethodJWT(pulumi.ComponentResource):
                 "gsuite_service_account": sa_secret,
                 "gsuite_admin_impersonate": gsuite_admin,
                 "fetch_groups": True,
-                "domain": "hul.to",
+                "domain": gsuite_domain,
                 "fetch_user_info": True,
                 "groups_recurse_max_depth": 5,
                 "impersonate_principal": sa_email,
