@@ -1,3 +1,4 @@
+import json
 import pulumi
 import pulumi_vault as pvault
 import re
@@ -24,6 +25,8 @@ class AuthMethodJWT(pulumi.ComponentResource):
         client_id = config.require("client_id")
         client_secret = config.require("client_secret")
         sa_secret = config.require("vault_sa_account_json")
+        sa_email = json.loads(sa_secret)["client_email"]
+        gsuite_admin = config.require("gsuite_admin")
 
 
         # Setup vault google auth method
@@ -40,12 +43,12 @@ class AuthMethodJWT(pulumi.ComponentResource):
             provider_config={
                 "provider": "gsuite",
                 "gsuite_service_account": sa_secret,
-                "gsuite_admin_impersonate": "hulto@hul.to",
+                "gsuite_admin_impersonate": gsuite_admin,
                 "fetch_groups": True,
                 "domain": "hul.to",
                 "fetch_user_info": True,
                 "groups_recurse_max_depth": 5,
-                "impersonate_principal": "vault-core-40809eee975c@galaxygridlabs.iam.gserviceaccount.com",
+                "impersonate_principal": sa_email,
             },
             opts=pulumi.ResourceOptions(parent=self))
 
@@ -80,27 +83,26 @@ class AuthMethodJWT(pulumi.ComponentResource):
         # Generate service account credentials save them store them to config secret
 
         # https://developer.hashicorp.com/vault/tutorials/auth-methods/identity#create-an-external-group
-       
-        #  hulto@saw  /tmp/test5 
-        # $ vault write -format=json identity/group name="labadmins@hul.to" \
-        #     policies="admin" \
-        #     type="external" \
-        #     metadata=organization="Lab administrators" | jq -r ".data.id" > group_id.txt
 
+        lab_admins = pvault.identity.Group(
+           resource_name=name,
+            name="labadmins@hul.to",
+            type="external",
+            policies=[
+                "admin",
+                "default",
+            ],
+            metadata={
+                "organization": "Lab administrators",
+            },
+            opts=pulumi.ResourceOptions(parent=self))
 
-        #  hulto@saw  /tmp/test5 
-        # $ cat group_id.txt 
-        # ee87ad9c-5b71-1911-2ba9-4b28a794ce40
-
-        #  hulto@saw  /tmp/test5 
-        # $ vault write identity/group-alias name="labadmins@hul.to" \
-        #     mount_accessor="auth_oidc_53f0016e" \
-        #     canonical_id="ee87ad9c-5b71-1911-2ba9-4b28a794ce40"
-
-        # Key             Value
-        # ---             -----
-        # canonical_id    ee87ad9c-5b71-1911-2ba9-4b28a794ce40
-        # id              5f0a4040-5fee-abaf-687b-eab54f6aab69
+        group_alias = pvault.identity.GroupAlias(
+            resource_name=f"{name}-alias",
+            name="labadmins@hul.to",
+            mount_accessor=google_auth_method.accessor,
+            canonical_id=lab_admins.id,
+            opts=pulumi.ResourceOptions(parent=self))
 
 
     @property
