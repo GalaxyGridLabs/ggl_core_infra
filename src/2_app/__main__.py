@@ -1,5 +1,6 @@
 """A Python Pulumi program"""
 
+import os
 import pulumi
 import pulumi_vault as pvault
 
@@ -9,6 +10,16 @@ from shared.git.git import Gitea
 
 def main():
     print("Starting")
+
+    # Create vault policies
+    policies_dir = "../shared/vault/policies"
+    for policy_file in os.listdir(policies_dir):
+        with open(f"{policies_dir}/{policy_file}", 'r') as f:
+            name = policy_file.removesuffix(".hcl")
+            pvault.Policy(
+                resource_name=f"policy-{name}",
+                name=name,
+                policy=f.read())
 
     # Setup vault google auth method
     google_auth = AuthMethodJWT(
