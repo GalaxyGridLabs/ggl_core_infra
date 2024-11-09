@@ -16,6 +16,25 @@ class Gitea(pulumi.ComponentResource):
         self.dns_zone = dns_zone
         super().__init__('ggl:shared/git:Gitea', name, None, opts)
 
+        """
+        Icon URL - https://www.datocms-assets.com/2885/1676497447-vault-favicon-color.png?h=32&w=32
+        OpenID Connect Auto Discovery URL - https://vault.galaxygridlabs.com/v1/identity/oidc/provider/gitea-auth/.well-known/openid-configuration
+        Additional Scopes - gitea-auth openid profile email
+        Claim name providing group names for this source. (Optional) - groups
+        Group Claim value for administrator users. (Optional - requires claim name above) - labadmins@hul.to
+        Map claimed groups to Organization teams. (Optional - requires claim name above) - {"red-team@hul.to":{"red-team":["red-teamers"]}}
+
+        docker run --rm -p 3000:3000 -v gitdata:/data \
+            -e GITEA__openid__ENABLE_OPENID_SIGNIN=true \
+            -e GITEA__openid__ENABLE_OPENID_SIGNUP=true \
+            -e GITEA__oauth2_client__ENABLE_AUTO_REGISTRATION=true \
+            -e GITEA__oauth2_client__ACCOUNT_LINKING=auto \
+            -e "GITEA__oauth2_client__OPENID_CONNECT_SCOPES=gitea-auth openid" \
+            -e USER_UID=1000 -e USER_GID=1000 \
+            --name gitea-test docker.io/gitea/gitea:1.22.3@sha256:76f516a1a8c27e8f8e9773639bf337c0176547a2d42a80843e3f2536787341c6 
+
+        """
+
     @property
     def name(self):
         return self.__name

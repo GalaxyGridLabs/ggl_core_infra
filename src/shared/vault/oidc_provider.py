@@ -10,6 +10,7 @@ class OIDCProvider(pulumi.ComponentResource):
     def __init__(self,
                 name: str,
                 redirect_uris: List[str],
+                scope_template: pulumi.Output,
                 opts = None):
 
         super().__init__('ggl:shared/vault:OIDCProvider', name, None, opts)
@@ -36,10 +37,8 @@ class OIDCProvider(pulumi.ComponentResource):
         scope = pvault.identity.OidcScope(
             resource_name=name,
             name=name,
-            template=json.dumps({
-                "groups": "{{identity.entity.groups.names}}",
-            }),
-            description=f"Scopes for the {name} oidc provider")
+            template=scope_template,
+            description=f"Scope for the {name} oidc provider")
         
         issuer_host = self.vault_address.split("://")[1]
         provider = pvault.identity.OidcProvider(
