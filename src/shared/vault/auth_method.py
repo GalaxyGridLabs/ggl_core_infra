@@ -13,6 +13,8 @@ class AuthMethodJWT(pulumi.ComponentResource):
                 provider_config: dict,
                 oidc_scopes: List[str],
                 claim_mappings: dict,
+                user_claim: str = "sub",
+                groups_claim: str = "groups",
                 opts = None):
 
         super().__init__('ggl:shared/vault:AuthMethodJWT', name, None, opts)
@@ -47,8 +49,8 @@ class AuthMethodJWT(pulumi.ComponentResource):
         pvault.jwt.AuthBackendRole(
             resource_name=name,
             backend=google_auth_method.path,
-            user_claim="email",
-            groups_claim="groups",
+            user_claim=user_claim,
+            groups_claim=groups_claim,
             role_name=oidc_default_role,
             token_policies=["default"],
             oidc_scopes=oidc_scopes,

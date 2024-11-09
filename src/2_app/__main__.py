@@ -50,7 +50,8 @@ def main():
             "email": "email",
             "groups": "groups",
             "given_name": "nickname",
-        })
+        },
+        user_claim="email")
 
     # Setup vault oidc provider for gitea
     def gen_accessor_template(accessor: str):
