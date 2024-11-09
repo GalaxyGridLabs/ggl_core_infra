@@ -1,3 +1,5 @@
+import json
+from typing import List
 import pulumi
 import pulumi_vault as pvault
 import re
@@ -8,6 +10,11 @@ class AuthMethodJWT(pulumi.ComponentResource):
                 path: str,
                 desc: str,
                 discover_url: str,
+                provider_config: dict,
+                oidc_scopes: List[str],
+                claim_mappings: dict,
+                user_claim: str = "sub",
+                groups_claim: str = "groups",
                 opts = None):
 
         super().__init__('ggl:shared/vault:AuthMethodJWT', name, None, opts)
@@ -18,12 +25,11 @@ class AuthMethodJWT(pulumi.ComponentResource):
 
         # Set and validate vars from config
         vault_config = pulumi.Config("vault")
-        self.vault_address = vault_config.require("address")    
+        self.vault_address = vault_config.require("address")
 
         config = pulumi.Config("ggl")
         client_id = config.require("client_id")
-        client_secret = config.require("client_secret")    
-
+        client_secret = config.require("client_secret")
 
         # Setup vault google auth method
         oidc_default_role = "user"
@@ -36,17 +42,38 @@ class AuthMethodJWT(pulumi.ComponentResource):
             default_role=oidc_default_role,
             oidc_client_id=client_id,
             oidc_client_secret=client_secret,
+            provider_config=provider_config,
             opts=pulumi.ResourceOptions(parent=self))
 
         self.oidc_redirect_uri = f"{self.vault_address}/ui/vault/auth/{self.path}/oidc/callback"
         pvault.jwt.AuthBackendRole(
             resource_name=name,
             backend=google_auth_method.path,
-            user_claim="sub",
+            user_claim=user_claim,
+            groups_claim=groups_claim,
             role_name=oidc_default_role,
             token_policies=["default"],
-            allowed_redirect_uris=[self.oidc_redirect_uri],
+            oidc_scopes=oidc_scopes,
+            allowed_redirect_uris=[
+                self.oidc_redirect_uri,
+                "http://localhost:8250/oidc/callback",
+            ],
+            claim_mappings=claim_mappings,
             opts=pulumi.ResourceOptions(parent=self))
+        
+        self.auth_accessor = google_auth_method.accessor
+
+        # https://developer.hashicorp.com/vault/docs/auth/jwt/oidc-providers/google
+        # Go to console.cloud.google.com
+        # IAM & Admin > Service accounts > vault-core-... > Advanced Settings > Domain-wide delegation
+        # Copy the client ID `108356764425394966944`
+        # Click "View google workspace admin console"
+        # ... > Security > Access and data control > API controls > Domain wide delegation > Add new
+        # Paste ID
+        # Paste scopes: `https://www.googleapis.com/auth/admin.directory.group.readonly https://www.googleapis.com/auth/admin.directory.user.readonly`
+        # Generate service account credentials save them store them to config secret
+
+        # https://developer.hashicorp.com/vault/tutorials/auth-methods/identity#create-an-external-group
 
 
     @property
