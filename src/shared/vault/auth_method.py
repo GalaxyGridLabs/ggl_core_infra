@@ -1,4 +1,5 @@
 import json
+from typing import List
 import pulumi
 import pulumi_vault as pvault
 import re
@@ -9,6 +10,9 @@ class AuthMethodJWT(pulumi.ComponentResource):
                 path: str,
                 desc: str,
                 discover_url: str,
+                provider_config: dict,
+                oidc_scopes: List[str],
+                claim_mappings: dict,
                 opts = None):
 
         super().__init__('ggl:shared/vault:AuthMethodJWT', name, None, opts)
@@ -24,11 +28,6 @@ class AuthMethodJWT(pulumi.ComponentResource):
         config = pulumi.Config("ggl")
         client_id = config.require("client_id")
         client_secret = config.require("client_secret")
-        sa_secret = config.require("vault_sa_account_json")
-        sa_email = json.loads(sa_secret)["client_email"]
-        gsuite_admin = config.require("gsuite_admin")
-        gsuite_domain = config.require("gsuite_domain")
-
 
         # Setup vault google auth method
         oidc_default_role = "user"
@@ -41,16 +40,7 @@ class AuthMethodJWT(pulumi.ComponentResource):
             default_role=oidc_default_role,
             oidc_client_id=client_id,
             oidc_client_secret=client_secret,
-            provider_config={
-                "provider": "gsuite",
-                "gsuite_service_account": sa_secret,
-                "gsuite_admin_impersonate": gsuite_admin,
-                "fetch_groups": True,
-                "domain": gsuite_domain,
-                "fetch_user_info": True,
-                "groups_recurse_max_depth": 5,
-                "impersonate_principal": sa_email,
-            },
+            provider_config=provider_config,
             opts=pulumi.ResourceOptions(parent=self))
 
         self.oidc_redirect_uri = f"{self.vault_address}/ui/vault/auth/{self.path}/oidc/callback"
@@ -61,17 +51,15 @@ class AuthMethodJWT(pulumi.ComponentResource):
             groups_claim="groups",
             role_name=oidc_default_role,
             token_policies=["default"],
-            oidc_scopes=["openid","email"],
+            oidc_scopes=oidc_scopes,
             allowed_redirect_uris=[
                 self.oidc_redirect_uri,
                 "http://localhost:8250/oidc/callback",
             ],
-            claim_mappings={
-                "email": "email",
-                "picture": "pfp",
-                "groups": "groups",
-            },
+            claim_mappings=claim_mappings,
             opts=pulumi.ResourceOptions(parent=self))
+        
+        self.auth_accessor = google_auth_method.accessor
 
         # https://developer.hashicorp.com/vault/docs/auth/jwt/oidc-providers/google
         # Go to console.cloud.google.com
