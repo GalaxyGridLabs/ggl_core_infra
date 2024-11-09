@@ -73,6 +73,13 @@ def main():
         metadata={"organization": "Lab administrators"},
         auth_mount_accessor=google_auth.auth_accessor)
 
+    red_team = GroupExternal(
+        name="redteam",
+        group_name="red-team@hul.to",
+        policies=["default"],
+        metadata={"organization": "Red teamers"},
+        auth_mount_accessor=google_auth.auth_accessor)
+
 
     pulumi.export("client_id", gitea_oidc.client_id)
     pulumi.export("client_secret", gitea_oidc.client_secret)
