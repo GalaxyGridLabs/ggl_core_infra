@@ -73,26 +73,6 @@ class AuthMethodJWT(pulumi.ComponentResource):
 
         # https://developer.hashicorp.com/vault/tutorials/auth-methods/identity#create-an-external-group
 
-        lab_admins = pvault.identity.Group(
-           resource_name=name,
-            name="labadmins@hul.to",
-            type="external",
-            policies=[
-                "admin",
-                "default",
-            ],
-            metadata={
-                "organization": "Lab administrators",
-            },
-            opts=pulumi.ResourceOptions(parent=self))
-
-        group_alias = pvault.identity.GroupAlias(
-            resource_name=f"{name}-alias",
-            name="labadmins@hul.to",
-            mount_accessor=google_auth_method.accessor,
-            canonical_id=lab_admins.id,
-            opts=pulumi.ResourceOptions(parent=self))
-
 
     @property
     def name(self):

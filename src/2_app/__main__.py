@@ -8,6 +8,7 @@ import pulumi_vault as pvault
 from shared.vault.auth_method import AuthMethodJWT
 from shared.vault.oidc_provider import OIDCProvider
 from shared.git.git import Gitea
+from shared.vault.group_external import GroupExternal
 
 def main():
     print("Starting")
@@ -63,6 +64,15 @@ def main():
         name="gitea-auth",
         redirect_uris=["http://localhost:3000/user/oauth2/vault/callback", "https://openidconnect.net/callback"],
         scope_template=google_auth.auth_accessor.apply(lambda accessor: gen_accessor_template(accessor) ))
+
+    # Setup labadmins group
+    lab_admins = GroupExternal(
+        name="labadmins",
+        group_name="labadmins@hul.to",
+        policies=["admin","default"],
+        metadata={"organization": "Lab administrators"},
+        auth_mount_accessor=google_auth.auth_accessor)
+
 
     pulumi.export("client_id", gitea_oidc.client_id)
     pulumi.export("client_secret", gitea_oidc.client_secret)
