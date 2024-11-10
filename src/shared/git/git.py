@@ -1,6 +1,7 @@
 import re
 import pulumi
 import pulumi_gcp as gcp
+import pulumi_random as prandom
 
 GITEA_IMAGE = "docker.io/gitea/gitea:1.22.3@sha256:76f516a1a8c27e8f8e9773639bf337c0176547a2d42a80843e3f2536787341c6"
 GITEA_DISK_SIZE = 16
@@ -54,6 +55,28 @@ class Gitea(pulumi.ComponentResource):
             resource_policies=[snapshot_policy],
             opts=pulumi.ResourceOptions(parent=self, protect=True))
 
+        # Setup FW rules
+        git_tag = prandom.RandomId(
+            resource_name=name,
+            prefix=f"{name}-",
+            byte_length=3,
+            opts=pulumi.ResourceOptions(parent=self))
+        git_fw = gcp.compute.Firewall(
+            resource_name=name,
+            network="default",
+            allows=[
+                {
+                    "protocol": "tcp",
+                    "ports": [
+                        GITEA_SSH_PORT,
+                        GITEA_PORT,
+                    ],
+                },
+            ],
+            target_tags=[git_tag.hex],
+            source_ranges=["0.0.0.0/0"],
+            opts=pulumi.ResourceOptions(parent=self))
+
         # Create a COS spec
         def generate_spec(conatiner_name: str, image: str, pd_name: str, port: int):
             return f"""
@@ -80,9 +103,9 @@ spec:
       value: '1000'
     - name: GITEA__server__HTTP_PORT
       value: {port}
-    - name: GITEA__server__SSH_PORT
+    - name: SSH_PORT
       value: {GITEA_SSH_PORT}
-    - name: GITEA__server__SSH_LISTEN_PORT
+    - name: SSH_LISTEN_PORT
       value: {GITEA_SSH_PORT}
     - name: GITEA__database__DB_TYPE
       value: sqlite3
@@ -106,6 +129,7 @@ spec:
             pd_name=data.name
             ).apply(lambda args: generate_spec(name, GITEA_IMAGE, args["pd_name"], GITEA_PORT)) 
         
+
         # Deploy COS instance
         cos_instance = gcp.compute.Instance(
             resource_name=name,
@@ -121,6 +145,7 @@ spec:
                     "mode": "READ_WRITE",
                     "source": data.name
                 }],
+            tags=[git_tag.hex],
             network_interfaces=[{
                     "access_configs": [{
                         "nat_ip": "",
@@ -159,7 +184,17 @@ spec:
 
         self.url = dns.name.apply(lambda domain: f"http://{domain.removesuffix('.')}:{GITEA_PORT}/")
 
+
         """
+        Might be automatable - https://docs.gitea.com/next/administration/command-line
+        - This is doable but seems messy would require:
+          - Mounting in a small `app.ini`
+          - Fixing missing vars that /etc/s6/gitea/setup creates
+          - Starting the app with entrypoint
+          - Running the `gtiea admin auth add-oauth --provider openidConnect` command
+
+        This doesn't seem worthwhile given git won't be going up and down that often.
+
         Manual configuration:
         1. Navigate to `gitea.url`
         2. Create admin user `root`
@@ -170,6 +205,9 @@ spec:
         Claim name providing group names for this source. (Optional) - groups
         Group Claim value for administrator users. (Optional - requires claim name above) - labadmins@hul.to
         Map claimed groups to Organization teams. (Optional - requires claim name above) - {"red-team@hul.to":{"red-team":["red-teamers"]}}
+
+        4. Login with OIDC
+        5. Disable root user
         """
 
     @property
