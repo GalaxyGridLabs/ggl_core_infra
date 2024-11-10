@@ -89,6 +89,7 @@ def main():
         name="gitea",
         subdomain="git",
         dns_zone="galaxygridlabs-com")
+    
     pulumi.export("gitea", gitea.url)
 
 if __name__ == "__main__":
