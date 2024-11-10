@@ -51,6 +51,7 @@ class Gitea(pulumi.ComponentResource):
         # Create a data disk
         data = gcp.compute.Disk(
             resource_name=name,
+            type="pd-standard",
             size=GITEA_DISK_SIZE,
             resource_policies=[snapshot_policy],
             opts=pulumi.ResourceOptions(parent=self, protect=True))
@@ -138,6 +139,7 @@ spec:
                 "initialize_params": {
                     "image": COS_IMAGE,
                     "size": COS_DISK_SIZE,
+                    "type": "pd-standard"
                 }
             },
             attached_disks=[{
