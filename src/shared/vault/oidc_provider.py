@@ -32,13 +32,15 @@ class OIDCProvider(pulumi.ComponentResource):
             redirect_uris=redirect_uris,
             assignments=["allow_all"],
             id_token_ttl=2400,
-            access_token_ttl=7200)
+            access_token_ttl=7200,
+            opts=pulumi.ResourceOptions(parent=self))
 
         scope = pvault.identity.OidcScope(
             resource_name=name,
             name=name,
             template=scope_template,
-            description=f"Scope for the {name} oidc provider")
+            description=f"Scope for the {name} oidc provider",
+            opts=pulumi.ResourceOptions(parent=self))
         
         issuer_host = self.vault_address.split("://")[1]
         provider = pvault.identity.OidcProvider(
@@ -47,7 +49,8 @@ class OIDCProvider(pulumi.ComponentResource):
             https_enabled=self.vault_address.startswith("https"),
             issuer_host=issuer_host,
             allowed_client_ids=[client.client_id],
-            scopes_supporteds=[scope.name])
+            scopes_supporteds=[scope.name],
+            opts=pulumi.ResourceOptions(parent=self))
         
         self.client_id = client.client_id
         self.client_secret = client.client_secret
