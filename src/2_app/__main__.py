@@ -61,10 +61,13 @@ def main():
     "email": {{{{identity.entity.aliases.{accessor}.metadata.email}}}},
     "nickname": {{{{identity.entity.aliases.{accessor}.metadata.nickname}}}}
 }}"""
+    
     gitea_oidc = OIDCProvider(
         name="gitea-auth",
-        redirect_uris=["http://localhost:3000/user/oauth2/vault/callback", "https://openidconnect.net/callback"],
+        redirect_uris=["http://git.galaxygridlabs.com:3000/user/oauth2/vault/callback"],
         scope_template=google_auth.auth_accessor.apply(lambda accessor: gen_accessor_template(accessor) ))
+    pulumi.export("client_id", gitea_oidc.client_id)
+    pulumi.export("client_secret", gitea_oidc.client_secret)
 
     # Setup labadmins group
     lab_admins = GroupExternal(
@@ -81,16 +84,13 @@ def main():
         metadata={"organization": "Red teamers"},
         auth_mount_accessor=google_auth.auth_accessor)
 
-
-    pulumi.export("client_id", gitea_oidc.client_id)
-    pulumi.export("client_secret", gitea_oidc.client_secret)
-
     # New gitea server
     gitea = Gitea(
         name="gitea",
         subdomain="git",
         dns_zone="galaxygridlabs-com")
-
+    
+    pulumi.export("gitea", gitea.url)
 
 if __name__ == "__main__":
     main()
