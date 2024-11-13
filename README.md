@@ -89,11 +89,12 @@ pulumi stack --show-urns --show-ids
     │  │     URN: urn:pulumi:dev::2_app::ggl:shared/git:Gitea$gcp:compute/disk:Disk::gitea
     │  │     ID: projects/galaxygridlabs/zones/us-central1-a/disks/gitea-5249582
 
-# delete the disk, instance, and record set
+# delete the disk, instance, and record set from our state
 pulumi state delete 'urn:pulumi:dev::2_app::ggl:shared/git:Gitea$gcp:compute/disk:Disk::gitea' --force --target-dependents
 
 # Import the backup disk
 pulumi import gcp:compute/disk:Disk gitea $new_disk --parent 'urn:pulumi:dev::2_app::ggl:shared/git:Gitea::gitea'
+# Recreate instance and record set - should be +2 new
 PYTHONPATH=.. pulumi up --stack dev
 
 # Cleanup old instance
