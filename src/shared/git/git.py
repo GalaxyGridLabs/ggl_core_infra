@@ -54,7 +54,12 @@ class Gitea(pulumi.ComponentResource):
             type="pd-standard",
             size=GITEA_DISK_SIZE,
             resource_policies=[snapshot_policy],
-            opts=pulumi.ResourceOptions(parent=self, protect=True))
+            opts=pulumi.ResourceOptions(
+                parent=self, 
+                protect=True,
+                ignore_changes=["snapshot"], # Ignore changes to snapshot source so we can restore from backup
+                ))
+        
 
         # Setup FW rules
         git_tag = prandom.RandomId(
