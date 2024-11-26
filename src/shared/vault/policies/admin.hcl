@@ -57,3 +57,15 @@ path "sys/mounts"
 {
   capabilities = ["read"]
 }
+
+
+# Setup SSH CA
+path "lab-ssh/*"
+{
+  capabilities = ["create", "read", "update", "delete", "list", "sudo"]
+}
+
+path "lab-ssh"
+{
+  capabilities = ["create", "read", "update", "delete", "list", "sudo"]
+}

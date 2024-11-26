@@ -9,6 +9,7 @@ from shared.vault.auth_method import AuthMethodJWT
 from shared.vault.oidc_provider import OIDCProvider
 from shared.git.git import Gitea
 from shared.vault.group_external import GroupExternal
+from shared.vault.ssh_ca import SSHCertificateAuthority, SSHCertificateAuthorityRole
 
 def main():
     print("Starting")
@@ -83,6 +84,24 @@ def main():
         policies=["default"],
         metadata={"organization": "Red teamers"},
         auth_mount_accessor=google_auth.auth_accessor)
+
+    # Setup SSH CA
+    lab_ca = SSHCertificateAuthority(
+        name="lab-ssh"
+    )
+
+    sysadmin_role = SSHCertificateAuthorityRole(
+        name="lab-ssh-sysadmin",
+        allowed_users=["sysadmin"],
+        ssh_ca=lab_ca
+    )
+    user_role = SSHCertificateAuthorityRole(
+        name="lab-ssh-user",
+        allowed_users=["user"],
+        ssh_ca=lab_ca
+    )
+
+    pulumi.export("ca_pubkey", lab_ca.public_key)
 
     # New gitea server
     gitea = Gitea(
