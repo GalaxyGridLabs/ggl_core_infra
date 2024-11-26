@@ -69,3 +69,15 @@ path "lab-ssh"
 {
   capabilities = ["create", "read", "update", "delete", "list", "sudo"]
 }
+
+
+# Setup SSH CA
+path "pki/*"
+{
+  capabilities = ["create", "read", "update", "delete", "list", "sudo"]
+}
+
+path "pki"
+{
+  capabilities = ["create", "read", "update", "delete", "list", "sudo"]
+}
