@@ -36,6 +36,15 @@ class SSHCertificateAuthorityRole(pulumi.ComponentResource):
 
         super().__init__('ggl:shared/vault:SSHCertificateAuthorityRole', name, None, opts=pulumi.ResourceOptions(parent=ssh_ca))
 
+        DEFAULT_EXTENSIONS = {
+                "permit-pty":"",
+                "permit-X11-forwarding":"",
+                "permit-agent-forwarding":"",
+                "permit-port-forwarding":"",
+                "permit-user-rc":"",
+        }
+        ALLOWED_EXTENSIONS = ",".join([k for k in DEFAULT_EXTENSIONS.keys()])
+
         role = vault.ssh.SecretBackendRole(
             resource_name=name,
             name=name,
@@ -43,6 +52,13 @@ class SSHCertificateAuthorityRole(pulumi.ComponentResource):
             key_type="ca",
             allow_user_certificates=True,
             allowed_users=",".join(allowed_users),
+            allowed_extensions=ALLOWED_EXTENSIONS,
+            default_extensions=DEFAULT_EXTENSIONS,
+            cidr_list="0.0.0.0/0",
             max_ttl=60*MINUTES,
             ttl=60*MINUTES,
             opts=pulumi.ResourceOptions(parent=self))
+
+# vault write -field=signed_key lab-ssh/sign/lab-ssh-sysadmin public_key=@/Users/hulto/.ssh/id_rsa.pub valid_principals=sysadmin > ~/.ssh/sysadmin-signed.pub
+
+# vault ssh -mount-point=lab-ssh -role=lab-ssh-sysadmin sysadmin@10.10.12.83
