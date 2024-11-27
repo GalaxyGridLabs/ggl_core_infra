@@ -100,3 +100,10 @@ PYTHONPATH=.. pulumi up --stack dev
 # Cleanup old instance
 gcloud compute instances delete $instance
 ```
+
+
+# Other services
+```bash
+# Add root CA
+curl --output ~/Downloads/ggl-vault-ca.pem https://vault.galaxygridlabs.com/v1/pki/ca
+```
