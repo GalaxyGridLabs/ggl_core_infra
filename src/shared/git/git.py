@@ -140,15 +140,7 @@ runcmd:
   - systemctl daemon-reload
   - systemctl enable --now caddy
 """
-        
-        """
-        - path: /var/caddy/certs/key.pem
-  owner: root:root
-  permissions: '0755'
-  content: |
-      {key}
-"""
-        
+                
         user_data = pulumi.Output.all(
             tls_cert=tls_cert,
             tls_key=tls_key,
@@ -245,7 +237,6 @@ spec:
                 "google-logging-enabled": True,
                 "user-data": user_data,
             },
-            # metadata_startup_script=startup_file,
             opts=pulumi.ResourceOptions(
                 parent=self,
                 delete_before_replace=True,
