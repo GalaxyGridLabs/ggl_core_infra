@@ -176,6 +176,8 @@ spec:
       value: 'auto'
     - name: GITEA__oauth2_client__OPENID_CONNECT_SCOPES
       value: gitea-auth openid
+    - name: GITEA__server__ROOT_URL
+      value: https://{fqdn}/
     - name: USER_UID
       value: '1000'
     - name: USER_GID
@@ -261,7 +263,7 @@ spec:
             rrdatas=[self.ip_addr],
             opts=pulumi.ResourceOptions(parent=self))
 
-        self.url = dns.name.apply(lambda domain: f"http://{domain.removesuffix('.')}:{GITEA_PORT}/")
+        self.url = dns.name.apply(lambda domain: f"https://{domain.removesuffix('.')}/")
 
 
         """

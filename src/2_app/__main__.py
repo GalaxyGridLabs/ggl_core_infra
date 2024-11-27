@@ -66,7 +66,7 @@ def main():
     
     gitea_oidc = OIDCProvider(
         name="gitea-auth",
-        redirect_uris=["http://git.galaxygridlabs.com:3000/user/oauth2/vault/callback"],
+        redirect_uris=["https://git.galaxygridlabs.com/user/oauth2/vault/callback"],
         scope_template=google_auth.auth_accessor.apply(lambda accessor: gen_accessor_template(accessor) ))
     pulumi.export("git_client_id", gitea_oidc.client_id)
     pulumi.export("git_client_secret", gitea_oidc.client_secret)
