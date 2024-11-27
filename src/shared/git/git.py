@@ -7,7 +7,10 @@ GITEA_IMAGE = "docker.io/gitea/gitea:1.22.3@sha256:76f516a1a8c27e8f8e9773639bf33
 GITEA_DISK_SIZE = 16
 GITEA_MACHINE_TYPE = "f1-micro"
 GITEA_PORT = 3000
+GITEA_TLS_PORT = 443
 GITEA_SSH_PORT = 2222
+
+CADDY_IMAGE = "docker.io/library/caddy:2.9-alpine@sha256:9cc41f26f734861421d99f00fc962b3a3181aab9b4dbd0ac7751a883623794b6"
 
 COS_IMAGE = "projects/cos-cloud/global/images/cos-stable-113-18244-151-9"
 COS_DISK_SIZE = 10
@@ -17,6 +20,8 @@ class Gitea(pulumi.ComponentResource):
                 name: str,
                 subdomain: str,
                 dns_zone: str,
+                tls_cert,
+                tls_key,
                 opts = None):
         
         # Set and validate inputs
@@ -24,6 +29,12 @@ class Gitea(pulumi.ComponentResource):
         self.subdomain = subdomain
         self.dns_zone = dns_zone
         super().__init__('ggl:shared/git:Gitea', name, None, opts)
+
+        env_dns_zone = gcp.dns.get_managed_zone(
+            name=self.dns_zone)
+
+        fqdn = f"{self.subdomain}.{env_dns_zone.dns_name}".removesuffix(".")
+
 
         # Create backup policy
         snapshot_policy = gcp.compute.ResourcePolicy(
@@ -59,7 +70,6 @@ class Gitea(pulumi.ComponentResource):
                 protect=True,
                 ignore_changes=["snapshot"], # Ignore changes to snapshot source so we can restore from backup
                 ))
-        
 
         # Setup FW rules
         git_tag = prandom.RandomId(
@@ -75,7 +85,7 @@ class Gitea(pulumi.ComponentResource):
                     "protocol": "tcp",
                     "ports": [
                         GITEA_SSH_PORT,
-                        GITEA_PORT,
+                        GITEA_TLS_PORT,
                     ],
                 },
             ],
@@ -83,13 +93,68 @@ class Gitea(pulumi.ComponentResource):
             source_ranges=["0.0.0.0/0"],
             opts=pulumi.ResourceOptions(parent=self))
 
+        # Setup Caddy https reverse proxy 443 -TLS-> 3000
+        def generate_user_data(cert: str, key: str):
+          # Fix YAML indentation
+          cert = cert.replace("\n", "\n      ")
+          key = key.replace("\n", "\n      ")
+          return f"""#cloud-config
+
+write_files:
+- path: /etc/systemd/system/caddy.service
+  owner: root:root
+  permissions: '0755'
+  content: |
+      [Unit]
+      Description=Startup caddy container
+      Requires=docker.service
+      After=docker.service
+
+      [Service]
+      Type=simple
+      ExecStart=/usr/bin/docker run -p 443:443 -v /var/caddy/:/data:ro --add-host=host.docker.internal:host-gateway --name caddy {CADDY_IMAGE} caddy run --config /data/Caddyfile --adapter caddyfile
+      Restart=always
+      RestartSec=30
+
+      [Install]
+      WantedBy=multi-user.target
+- path: /var/caddy/Caddyfile
+  owner: root:root
+  permissions: '0755'
+  content: |
+      {fqdn} {{
+        tls /data/certs/cert.pem /data/certs/key.pem
+        reverse_proxy host.docker.internal:{GITEA_PORT}
+      }}
+- path: /var/caddy/certs/cert.pem
+  owner: root:root
+  permissions: '0755'
+  content: |
+      {cert}
+- path: /var/caddy/certs/key.pem
+  owner: root:root
+  permissions: '0755'
+  content: |
+      {key}
+runcmd:
+  - systemctl daemon-reload
+  - systemctl enable --now caddy
+"""
+                
+        user_data = pulumi.Output.all(
+            tls_cert=tls_cert,
+            tls_key=tls_key,
+            ).apply(lambda args: generate_user_data(cert=args["tls_cert"], key=args["tls_key"])) 
+
+        
+
         # Create a COS spec
-        def generate_spec(conatiner_name: str, image: str, pd_name: str, port: int):
+        def generate_spec(pd_name: str):
             return f"""
 spec:
   containers:
-  - name: {conatiner_name}
-    image: {image}
+  - name: {name}
+    image: {GITEA_IMAGE}
     env:
     - name: DISABLE_REGISTRATION
       value: 'true'
@@ -103,12 +168,14 @@ spec:
       value: 'auto'
     - name: GITEA__oauth2_client__OPENID_CONNECT_SCOPES
       value: gitea-auth openid
+    - name: GITEA__server__ROOT_URL
+      value: https://{fqdn}/
     - name: USER_UID
       value: '1000'
     - name: USER_GID
       value: '1000'
     - name: GITEA__server__HTTP_PORT
-      value: {port}
+      value: {GITEA_PORT}
     - name: SSH_PORT
       value: {GITEA_SSH_PORT}
     - name: SSH_LISTEN_PORT
@@ -133,7 +200,7 @@ spec:
 """
         spec_str = pulumi.Output.all(
             pd_name=data.name
-            ).apply(lambda args: generate_spec(name, GITEA_IMAGE, args["pd_name"], GITEA_PORT)) 
+            ).apply(lambda args: generate_spec(args["pd_name"])) 
         
 
         # Deploy COS instance
@@ -168,6 +235,7 @@ spec:
             metadata={
                 "gce-container-declaration": spec_str,
                 "google-logging-enabled": True,
+                "user-data": user_data,
             },
             opts=pulumi.ResourceOptions(
                 parent=self,
@@ -176,9 +244,6 @@ spec:
                 ))
 
         self.ip_addr = cos_instance.network_interfaces[0].apply(lambda iface: iface.access_configs[0].nat_ip)
-
-        env_dns_zone = gcp.dns.get_managed_zone(
-            name=self.dns_zone)
         
         dns = gcp.dns.RecordSet(
             resource_name=name,
@@ -189,7 +254,7 @@ spec:
             rrdatas=[self.ip_addr],
             opts=pulumi.ResourceOptions(parent=self))
 
-        self.url = dns.name.apply(lambda domain: f"http://{domain.removesuffix('.')}:{GITEA_PORT}/")
+        self.url = dns.name.apply(lambda domain: f"https://{domain.removesuffix('.')}/")
 
 
         """

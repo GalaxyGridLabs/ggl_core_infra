@@ -10,6 +10,7 @@ from shared.vault.oidc_provider import OIDCProvider
 from shared.git.git import Gitea
 from shared.vault.group_external import GroupExternal
 from shared.vault.ssh_ca import SSHCertificateAuthority, SSHCertificateAuthorityRole
+from shared.vault.pki import PKI
 
 def main():
     print("Starting")
@@ -65,10 +66,10 @@ def main():
     
     gitea_oidc = OIDCProvider(
         name="gitea-auth",
-        redirect_uris=["http://git.galaxygridlabs.com:3000/user/oauth2/vault/callback"],
+        redirect_uris=["https://git.galaxygridlabs.com/user/oauth2/vault/callback"],
         scope_template=google_auth.auth_accessor.apply(lambda accessor: gen_accessor_template(accessor) ))
-    pulumi.export("client_id", gitea_oidc.client_id)
-    pulumi.export("client_secret", gitea_oidc.client_secret)
+    pulumi.export("git_client_id", gitea_oidc.client_id)
+    pulumi.export("git_client_secret", gitea_oidc.client_secret)
 
     # Setup labadmins group
     lab_admins = GroupExternal(
@@ -103,12 +104,22 @@ def main():
 
     pulumi.export("ca_pubkey", lab_ca.public_key)
 
+    # Setup PKI
+    pki = PKI(
+        name="pki")
+
     # New gitea server
+    git_cert, git_key = pki.create_cert("gitea", "git.galaxygridlabs.com")
     gitea = Gitea(
         name="gitea",
         subdomain="git",
-        dns_zone="galaxygridlabs-com")
+        dns_zone="galaxygridlabs-com",
+        tls_cert=git_cert,
+        tls_key=git_key)
     
+    pulumi.export("gitea_cert", git_cert)
+    pulumi.export("gitea_secret", git_key)
+
     pulumi.export("gitea", gitea.url)
 
 if __name__ == "__main__":
