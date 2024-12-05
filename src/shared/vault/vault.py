@@ -1,13 +1,21 @@
 import json
 import pulumi
 import pulumi_gcp as gcp
-import pulumi_random as random
+import pulumi_random as prandom
 from pulumi_command import local
 import re
 
 from ..constants import DAYS
 
 VAULT_IMAGE = "docker.io/hashicorp/vault:1.18.0@sha256:e2da7099950443e234ed699940fabcdc44b5babe33adfb459e189a63b7bb50d7"
+VAULT_PORT = 8200
+VAULT_MACHINE_TYPE = "f1-micro"
+
+CADDY_IMAGE = "docker.io/library/caddy:2.9-alpine@sha256:9cc41f26f734861421d99f00fc962b3a3181aab9b4dbd0ac7751a883623794b6"
+CADDY_HTTPS_PORT = 443
+CADDY_HTTP_PORT = 80
+COS_IMAGE = "projects/cos-cloud/global/images/cos-stable-113-18244-151-9"
+COS_DISK_SIZE = 10
 
 class Vault(pulumi.ComponentResource):
     def __init__(self,
@@ -27,18 +35,10 @@ class Vault(pulumi.ComponentResource):
         zone = config.require("zone")
         project = config.require("project")
 
-        # Set Vault DNS CNAME to `ghs.googlehosted.com.`
         env_dns_zone = gcp.dns.get_managed_zone(
             name=self.dns_zone)
-        
-        dns = gcp.dns.RecordSet(
-            resource_name=name,
-            name=f"{self.subdomain}.{env_dns_zone.dns_name}",
-            type="CNAME",
-            ttl=300,
-            managed_zone=env_dns_zone.name,
-            rrdatas=["ghs.googlehosted.com."],
-            opts=pulumi.ResourceOptions(parent=self))
+
+        fqdn = f"{self.subdomain}.{env_dns_zone.dns_name}".removesuffix(".")
 
         # New kms KeyRing and key
         keyring = gcp.kms.KeyRing(
@@ -53,8 +53,8 @@ class Vault(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self))
 
         # New service account
-        service_account_id = random.RandomId(
-            resource_name=name,
+        service_account_id = prandom.RandomId(
+            resource_name=f"sa{name}",
             byte_length=6,
             opts=pulumi.ResourceOptions(parent=self))
         
@@ -90,12 +90,14 @@ class Vault(pulumi.ComponentResource):
 
         # Generate config
         config_template = """ui = true
+disable_mlock = true
+
 storage "gcs" {{
     bucket = "{}"
 }}
 
 listener "tcp" {{
-    address       = "0.0.0.0:8200"
+    address       = "0.0.0.0:{}"
     tls_disable   = true
 }}
 
@@ -106,82 +108,146 @@ seal "gcpckms" {{
     crypto_key  = "{}"
 }}
 """.replace("    ", "\t")
-        
+
         config = pulumi.Output.all(
             bucket_name=storage_bucket.name,
             project=project,
             region=region,
             key_ring=keyring.name,
+            vault_port=VAULT_PORT,
             crypto_key=key.name).apply(
-                lambda args: config_template.format(args["bucket_name"], args["project"], args["region"], args["key_ring"], args["crypto_key"]))
+                lambda args: config_template.format(args["bucket_name"], args["vault_port"], args["project"], args["region"], args["key_ring"], args["crypto_key"]))
 
 
-        # Create cloud run service
-        cloudrun_service = gcp.cloudrunv2.Service(
+        # Setup FW rules
+        vault_tag = prandom.RandomId(
+            resource_name=f"fw{name}",
+            prefix=f"{name}-",
+            byte_length=3,
+            opts=pulumi.ResourceOptions(parent=self))
+        vault_fw = gcp.compute.Firewall(
             resource_name=name,
-            location=region,
-            deletion_protection=False,
-            template={
-                "containers": [{
-                    "image": VAULT_IMAGE,
-                    "resources": {
-                        "limits": {
-                            "cpu": "1",
-                            "memory": "512Mi"
-                        }
-                    },
-                    "ports": {
-                        "container_port": 8200
-                    },
-                    "args": ["server"],
-                    "envs": [{
-                        "name": "SKIP_SETCAP",
-                        "value":"true"
-                    },{
-                        "name": "VAULT_LOCAL_CONFIG",
-                        "value": config
-                    }]
-                }],
-                "annotations": {
-                    "run.googleapis.com/cpu-throttling": "false"
+            network="default",
+            allows=[
+                {
+                    "protocol": "tcp",
+                    "ports": [
+                        CADDY_HTTPS_PORT,
+                        CADDY_HTTP_PORT,
+                    ],
                 },
-                "service_account": service_account.email
+            ],
+            target_tags=[vault_tag.hex],
+            source_ranges=["0.0.0.0/0"],
+            opts=pulumi.ResourceOptions(parent=self))
+
+        # Setup Caddy https reverse proxy 443 -TLS-> 3000
+        user_data = f"""#cloud-config
+
+write_files:
+- path: /etc/systemd/system/caddy.service
+  owner: root:root
+  permissions: '0755'
+  content: |
+      [Unit]
+      Description=Startup caddy container
+      Requires=docker.service
+      After=docker.service
+
+      [Service]
+      Type=simple
+      ExecStart=/usr/bin/docker run -p 443:{CADDY_HTTPS_PORT} -p 80:{CADDY_HTTP_PORT} -v /var/caddy/:/data:rw --add-host=host.docker.internal:host-gateway --name caddy {CADDY_IMAGE} caddy run --config /data/Caddyfile --adapter caddyfile
+      Restart=always
+      RestartSec=30
+
+      [Install]
+      WantedBy=multi-user.target
+- path: /var/caddy/Caddyfile
+  owner: root:root
+  permissions: '0755'
+  content: |
+      {fqdn} {{
+        reverse_proxy host.docker.internal:{VAULT_PORT}
+      }}
+runcmd:
+  - systemctl daemon-reload
+  - systemctl enable --now caddy
+"""
+
+        # Create a COS spec
+        def generate_spec(config: str):
+            config = config.replace("\n", "\n        ")
+            return f"""
+spec:
+  containers:
+  - name: {name}
+    image: {VAULT_IMAGE}
+    args: ["server"]
+    env:
+    - name: SKIP_SETCAP
+      value: 'true'
+    - name: VAULT_LOCAL_CONFIG
+      value: |
+        {config}
+    stdin: false
+    tty: false
+"""
+        
+        spec_str = pulumi.Output.all(
+            config=config
+            ).apply(lambda args: generate_spec(args["config"])) 
+
+        
+
+        # Deploy COS instance
+        cos_instance = gcp.compute.Instance(
+            resource_name=name,
+            machine_type=VAULT_MACHINE_TYPE,
+            boot_disk={
+                "initialize_params": {
+                    "image": COS_IMAGE,
+                    "size": COS_DISK_SIZE,
+                    "type": "pd-standard"
+                }
             },
-            opts=pulumi.ResourceOptions(parent=self))
-
-        # Allow all users to access cloud run service
-        gcp.cloudrunv2.ServiceIamMember(
-            resource_name=name,
-            name=cloudrun_service.name,
-            location=region,
-            role="roles/run.invoker",
-            member="allUsers",
-            opts=pulumi.ResourceOptions(parent=self))
-
-        # Domain mapping for vault
-        gcp.cloudrun.DomainMapping(
-            resource_name=name,
-            location=region,
-            name=dns.name.apply(lambda domain: domain.removesuffix(".")),
+            tags=[vault_tag.hex],
+            network_interfaces=[{
+                    "access_configs": [{
+                        "nat_ip": "",
+                        "network_tier": "STANDARD",
+                    }],
+                    "subnetwork": "default",
+                    "stack_type": "IPV4_ONLY",
+                }],
+            service_account={
+                "email": service_account.email,
+                "scopes": ["https://www.googleapis.com/auth/cloud-platform"]
+            },
+            allow_stopping_for_update=True,
             metadata={
-                "namespace": project,
+                "gce-container-declaration": spec_str,
+                "google-logging-enabled": True,
+                "user-data": user_data,
             },
-            spec={
-                "route_name": cloudrun_service.name
-            },
+            opts=pulumi.ResourceOptions(
+                parent=self,
+                delete_before_replace=True,
+                replace_on_changes=["metadata"],
+                ))
+
+        self.ip_addr = cos_instance.network_interfaces[0].apply(lambda iface: iface.access_configs[0].nat_ip)
+        
+        dns = gcp.dns.RecordSet(
+            resource_name=name,
+            name=f"{self.subdomain}.{env_dns_zone.dns_name}",
+            type="A",
+            ttl=300,
+            managed_zone=env_dns_zone.name,
+            rrdatas=[self.ip_addr],
             opts=pulumi.ResourceOptions(parent=self))
 
-        # Use private domain and custom curl to init vault
-        # init_output = pulumi.Output.all(cloudrun_service.uri).apply(
-        #     lambda uri: self.init(uri[0])
-        # )
+        self.url = dns.name.apply(lambda domain: f"https://{domain.removesuffix('.')}/")
 
-        # Store public url, and root_token
-        self.public_url = dns.name.apply(lambda domain: f"https://{domain.removesuffix('.')}")
-        self.private_url = cloudrun_service.uri
-        # self.root_token = init_output.apply(lambda res: res["root_token"])
-
-        return
 
     def init(self, uri: str):
         init_payload = """{
