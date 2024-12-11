@@ -117,8 +117,7 @@ def main():
         tls_cert=git_cert,
         tls_key=git_key)
     
-    pulumi.export("gitea_cert", git_cert)
-    pulumi.export("gitea_secret", git_key)
+
 
     pulumi.export("gitea", gitea.url)
 
