@@ -248,6 +248,18 @@ spec:
 
         self.url = dns.name.apply(lambda domain: f"https://{domain.removesuffix('.')}/")
 
+        """
+        Configure Domain Wide Delegation for the vault Service Account.
+        https://developers.google.com/workspace/guides/create-credentials#optional_set_up_domain-wide_delegation_for_a_service_account
+
+        Copy the client ID and navigate to the API Controls.
+
+        Grant the following OAuth scopes to the service account:
+
+        https://www.googleapis.com/auth/admin.directory.group.readonly
+        https://www.googleapis.com/auth/admin.directory.user.readonly
+        """
+
 
     def init(self, uri: str):
         init_payload = """{
