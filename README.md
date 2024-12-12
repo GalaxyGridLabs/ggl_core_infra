@@ -16,9 +16,19 @@ $ pulumi config set gcp:region us-central1
 $ pulumi config set gcp:zone us-central1-a
 $ pulumi config set gcp:project galaxygridlabs
 ```
+## Init vault
+```
+curl -s -X POST --data { "recovery_shares": 5, "recovery_threshold": 3, "stored_shares": 5 } https://vault.galaxygridlabs.com
+```
+
 
 
 # App
+
+
+## Setup vault domain wide delegation
+https://developers.google.com/workspace/guides/create-credentials#optional_set_up_domain-wide_delegation_for_a_service_account
+
 
 ```bash
 $ pulumi config set vault:address https://vault.galaxygridlabs.com
