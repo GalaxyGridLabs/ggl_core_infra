@@ -3,7 +3,7 @@ import pulumi
 import pulumi_gcp as gcp
 import pulumi_random as prandom
 
-GITEA_IMAGE = "docker.io/gitea/gitea:1.22.3@sha256:76f516a1a8c27e8f8e9773639bf337c0176547a2d42a80843e3f2536787341c6"
+GITEA_IMAGE = "docker.io/gitea/gitea:1.22.4@sha256:0b46675a917b1aaf4d494987ccc35ad0f28239910ac7a9de3bf09350b374d487"
 GITEA_DISK_SIZE = 16
 GITEA_MACHINE_TYPE = "f1-micro"
 GITEA_PORT = 3000
