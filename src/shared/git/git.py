@@ -5,7 +5,7 @@ import pulumi_random as prandom
 
 GITEA_IMAGE = "docker.io/gitea/gitea:1.22.4@sha256:0b46675a917b1aaf4d494987ccc35ad0f28239910ac7a9de3bf09350b374d487"
 GITEA_DISK_SIZE = 16
-GITEA_MACHINE_TYPE = "f1-micro"
+GITEA_MACHINE_TYPE = "e2-micro" # f1-micro is too small
 GITEA_PORT = 3000
 GITEA_TLS_PORT = 443
 GITEA_SSH_PORT = 2222
@@ -20,8 +20,6 @@ class Gitea(pulumi.ComponentResource):
                 name: str,
                 subdomain: str,
                 dns_zone: str,
-                tls_cert,
-                tls_key,
                 opts = None):
         
         # Set and validate inputs
@@ -94,11 +92,7 @@ class Gitea(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self))
 
         # Setup Caddy https reverse proxy 443 -TLS-> 3000
-        def generate_user_data(cert: str, key: str):
-          # Fix YAML indentation
-          cert = cert.replace("\n", "\n      ")
-          key = key.replace("\n", "\n      ")
-          return f"""#cloud-config
+        user_data = f"""#cloud-config
 
 write_files:
 - path: /etc/systemd/system/caddy.service
@@ -112,7 +106,7 @@ write_files:
 
       [Service]
       Type=simple
-      ExecStart=/usr/bin/docker run -p 443:443 -v /var/caddy/:/data:ro --add-host=host.docker.internal:host-gateway --name caddy {CADDY_IMAGE} caddy run --config /data/Caddyfile --adapter caddyfile
+      ExecStart=/usr/bin/docker run -p 443:443 -v /var/caddy/:/data:rw --add-host=host.docker.internal:host-gateway --name caddy {CADDY_IMAGE} caddy run --config /data/Caddyfile --adapter caddyfile
       Restart=always
       RestartSec=30
 
@@ -123,29 +117,14 @@ write_files:
   permissions: '0755'
   content: |
       {fqdn} {{
-        tls /data/certs/cert.pem /data/certs/key.pem
         reverse_proxy host.docker.internal:{GITEA_PORT}
       }}
-- path: /var/caddy/certs/cert.pem
-  owner: root:root
-  permissions: '0755'
-  content: |
-      {cert}
-- path: /var/caddy/certs/key.pem
-  owner: root:root
-  permissions: '0755'
-  content: |
-      {key}
 runcmd:
   - systemctl daemon-reload
   - systemctl enable --now caddy
 """
                 
-        user_data = pulumi.Output.all(
-            tls_cert=tls_cert,
-            tls_key=tls_key,
-            ).apply(lambda args: generate_user_data(cert=args["tls_cert"], key=args["tls_key"])) 
-
+        
         
 
         # Create a COS spec
