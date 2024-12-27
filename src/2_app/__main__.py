@@ -109,17 +109,21 @@ def main():
         name="pki")
 
     # New gitea server
-    git_cert, git_key = pki.create_cert("gitea", "git.galaxygridlabs.com")
     gitea = Gitea(
         name="gitea",
         subdomain="git",
-        dns_zone="galaxygridlabs-com",
-        tls_cert=git_cert,
-        tls_key=git_key)
-    
-
+        dns_zone="galaxygridlabs-com")
 
     pulumi.export("gitea", gitea.url)
+
+    # OpenStack OIDC provider
+    openstack_oidc = OIDCProvider(
+        name="test-openstack",
+        redirect_uris=["http://10.10.12.200:5000/redirect_uri","http://openstack.5e.local:5000/redirect_uri"],
+        scope_template=google_auth.auth_accessor.apply(lambda accessor: gen_accessor_template(accessor) ))
+    pulumi.export("os_client_id", openstack_oidc.client_id)
+    pulumi.export("os_client_secret", openstack_oidc.client_secret)
+
 
 if __name__ == "__main__":
     main()
