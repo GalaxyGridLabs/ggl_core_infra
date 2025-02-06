@@ -3,7 +3,7 @@ import pulumi
 import pulumi_gcp as gcp
 import pulumi_random as prandom
 
-GITEA_IMAGE = "docker.io/gitea/gitea:1.22.4@sha256:0b46675a917b1aaf4d494987ccc35ad0f28239910ac7a9de3bf09350b374d487"
+GITEA_IMAGE = "docker.io/gitea/gitea:1.23.3@sha256:ef398a4ff5b7d61d63babe1b48c87f576209229367a4031c9a05f1bee2f367b3"
 GITEA_DISK_SIZE = 16
 GITEA_MACHINE_TYPE = "e2-micro" # f1-micro is too small
 GITEA_PORT = 3000
@@ -135,6 +135,18 @@ spec:
   - name: {name}
     image: {GITEA_IMAGE}
     env:
+    - name: ALLOWED_USER_VISIBILITY_MODES
+      value: 'limited,private'
+    - name: DEFAULT_USER_VISIBILITY
+      value: 'private'
+    - name: DEFAULT_ORG_VISIBILITY
+      value: 'limited'
+    - name: DEFAULT_ORG_MEMBER_VISIBLE
+      value: 'false'
+    - name: DEFAULT_USER_VISIBILITY
+      value: 'limited'
+    - name: REQUIRE_SIGNIN_VIEW
+      value: 'true'
     - name: DISABLE_REGISTRATION
       value: 'true'
     - name: GITEA__openid__ENABLE_OPENID_SIGNIN
