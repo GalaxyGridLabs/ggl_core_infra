@@ -1,5 +1,7 @@
 # Setup
 
+*Remember to clean-up KMS keys after applying changes if needed*
+
 1. Create a new GCP project
 2. Create a GCP bucket to store the projects state.
 3. Initialize the backend

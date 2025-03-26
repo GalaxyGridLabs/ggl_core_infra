@@ -86,6 +86,13 @@ def main():
         metadata={"organization": "Red teamers"},
         auth_mount_accessor=google_auth.auth_accessor)
 
+    red_team = GroupExternal(
+        name="spellshift",
+        group_name="spellshift@hul.to",
+        policies=["default"],
+        metadata={"organization": "Spellshift team"},
+        auth_mount_accessor=google_auth.auth_accessor)
+
     # Setup SSH CA
     lab_ca = SSHCertificateAuthority(
         name="lab-ssh"
@@ -123,6 +130,7 @@ def main():
         scope_template=google_auth.auth_accessor.apply(lambda accessor: gen_accessor_template(accessor) ))
     pulumi.export("os_client_id", openstack_oidc.client_id)
     pulumi.export("os_client_secret", openstack_oidc.client_secret)
+
 
 
 if __name__ == "__main__":
