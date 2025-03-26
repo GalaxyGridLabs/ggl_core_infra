@@ -3,7 +3,7 @@ import pulumi
 import pulumi_gcp as gcp
 import pulumi_random as prandom
 
-GITEA_IMAGE = "docker.io/gitea/gitea:1.23.3@sha256:ef398a4ff5b7d61d63babe1b48c87f576209229367a4031c9a05f1bee2f367b3"
+GITEA_IMAGE = "docker.io/gitea/gitea:1.23.6@sha256:01bb6f98fb9e256554d59c85b9f1cb39f3da68202910ea0909d61c6b449c207d"
 GITEA_DISK_SIZE = 16
 GITEA_MACHINE_TYPE = "e2-micro" # f1-micro is too small
 GITEA_PORT = 3000
@@ -137,8 +137,6 @@ spec:
     env:
     - name: ALLOWED_USER_VISIBILITY_MODES
       value: 'limited,private'
-    - name: DEFAULT_USER_VISIBILITY
-      value: 'private'
     - name: DEFAULT_ORG_VISIBILITY
       value: 'limited'
     - name: DEFAULT_ORG_MEMBER_VISIBLE
@@ -267,7 +265,8 @@ spec:
         Additional Scopes - gitea-auth openid profile email
         Claim name providing group names for this source. (Optional) - groups
         Group Claim value for administrator users. (Optional - requires claim name above) - labadmins@hul.to
-        Map claimed groups to Organization teams. (Optional - requires claim name above) - {"red-team@hul.to":{"red-team":["red-teamers"]}}
+        Map claimed groups to Organization teams. (Optional - requires claim name above) - {"red-team@hul.to":{"red-team":["red-teamers"]},"spellshift@hul.to":{"spellshift":["spellshift-dev"]}}
+        If you update the above mapping - make sure to update the external groups in vault.
 
         4. Login with OIDC
         5. Disable root user
