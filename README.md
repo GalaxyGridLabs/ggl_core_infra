@@ -20,7 +20,7 @@ $ pulumi config set gcp:project galaxygridlabs
 ```
 ## Init vault
 ```
-curl -s -X POST --data { "recovery_shares": 5, "recovery_threshold": 3, "stored_shares": 5 } https://vault.galaxygridlabs.com
+curl -v -X POST --data '{ "recovery_shares": 5, "recovery_threshold": 3, "stored_shares": 5 }' https://vault.galaxygridlabs.com/v1/sys/init
 ```
 
 
