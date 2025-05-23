@@ -126,16 +126,16 @@ def main():
 
     pulumi.export("gitea", gitea.url)
 
-    # Harvester OIDC provider
-    harvester_oidc = OIDCProvider(
-        name="harvester",
-        redirect_uris=["https://rancher.10.10.12.83.sslip.io/verify-auth"],
+    # Cloudflare OIDC provider
+    cloudflare_oidc = OIDCProvider(
+        name="cloudflare",
+        redirect_uris=["https://hulto.cloudflareaccess.com/cdn-cgi/access/callback"],
         scope_template=google_auth.auth_accessor.apply(
             lambda accessor: gen_accessor_template(accessor)
         ),
     )
-    pulumi.export("harvester_client_id", harvester_oidc.client_id)
-    pulumi.export("harvester_client_secret", harvester_oidc.client_secret)
+    pulumi.export("cloudflare_client_id", cloudflare_oidc.client_id)
+    pulumi.export("cloudflare_client_secret", cloudflare_oidc.client_secret)
 
 
 if __name__ == "__main__":
