@@ -3,9 +3,9 @@ import pulumi
 import pulumi_gcp as gcp
 import pulumi_random as prandom
 
-GITEA_IMAGE = "docker.io/gitea/gitea:1.23.6@sha256:01bb6f98fb9e256554d59c85b9f1cb39f3da68202910ea0909d61c6b449c207d"
+GITEA_IMAGE = "docker.io/gitea/gitea:1.24.0-rc0@sha256:55d89f99a15aed180adfe49f4184cb6e72c7c7d82e8ad90978c83cef65fb5834"
 GITEA_DISK_SIZE = 16
-GITEA_MACHINE_TYPE = "e2-micro" # f1-micro is too small
+GITEA_MACHINE_TYPE = "e2-micro"  # f1-micro is too small
 GITEA_PORT = 3000
 GITEA_TLS_PORT = 443
 GITEA_SSH_PORT = 2222
@@ -15,24 +15,19 @@ CADDY_IMAGE = "docker.io/library/caddy:2.9-alpine@sha256:9cc41f26f734861421d99f0
 COS_IMAGE = "projects/cos-cloud/global/images/cos-stable-113-18244-151-9"
 COS_DISK_SIZE = 10
 
+
 class Gitea(pulumi.ComponentResource):
-    def __init__(self,
-                name: str,
-                subdomain: str,
-                dns_zone: str,
-                opts = None):
-        
+    def __init__(self, name: str, subdomain: str, dns_zone: str, opts=None):
+
         # Set and validate inputs
         self.name = name
         self.subdomain = subdomain
         self.dns_zone = dns_zone
-        super().__init__('ggl:shared/git:Gitea', name, None, opts)
+        super().__init__("ggl:shared/git:Gitea", name, None, opts)
 
-        env_dns_zone = gcp.dns.get_managed_zone(
-            name=self.dns_zone)
+        env_dns_zone = gcp.dns.get_managed_zone(name=self.dns_zone)
 
         fqdn = f"{self.subdomain}.{env_dns_zone.dns_name}".removesuffix(".")
-
 
         # Create backup policy
         snapshot_policy = gcp.compute.ResourcePolicy(
@@ -41,13 +36,16 @@ class Gitea(pulumi.ComponentResource):
             snapshot_schedule_policy={
                 "schedule": {
                     "weekly_schedule": {
-                        "day_of_weeks": [{
-                            "day": "MONDAY",
-                            "start_time": "09:00",
-                        },{
-                            "day": "THURSDAY",
-                            "start_time": "09:00",
-                        }],
+                        "day_of_weeks": [
+                            {
+                                "day": "MONDAY",
+                                "start_time": "09:00",
+                            },
+                            {
+                                "day": "THURSDAY",
+                                "start_time": "09:00",
+                            },
+                        ],
                     },
                 },
                 "retention_policy": {
@@ -55,7 +53,8 @@ class Gitea(pulumi.ComponentResource):
                     "on_source_disk_delete": "APPLY_RETENTION_POLICY",
                 },
             },
-            opts=pulumi.ResourceOptions(parent=self))
+            opts=pulumi.ResourceOptions(parent=self),
+        )
 
         # Create a data disk
         data = gcp.compute.Disk(
@@ -64,17 +63,21 @@ class Gitea(pulumi.ComponentResource):
             size=GITEA_DISK_SIZE,
             resource_policies=[snapshot_policy],
             opts=pulumi.ResourceOptions(
-                parent=self, 
+                parent=self,
                 protect=True,
-                ignore_changes=["snapshot"], # Ignore changes to snapshot source so we can restore from backup
-                ))
+                ignore_changes=[
+                    "snapshot"
+                ],  # Ignore changes to snapshot source so we can restore from backup
+            ),
+        )
 
         # Setup FW rules
         git_tag = prandom.RandomId(
             resource_name=name,
             prefix=f"{name}-",
             byte_length=3,
-            opts=pulumi.ResourceOptions(parent=self))
+            opts=pulumi.ResourceOptions(parent=self),
+        )
         git_fw = gcp.compute.Firewall(
             resource_name=name,
             network="default",
@@ -89,7 +92,8 @@ class Gitea(pulumi.ComponentResource):
             ],
             target_tags=[git_tag.hex],
             source_ranges=["0.0.0.0/0"],
-            opts=pulumi.ResourceOptions(parent=self))
+            opts=pulumi.ResourceOptions(parent=self),
+        )
 
         # Setup Caddy https reverse proxy 443 -TLS-> 3000
         user_data = f"""#cloud-config
@@ -123,9 +127,6 @@ runcmd:
   - systemctl daemon-reload
   - systemctl enable --now caddy
 """
-                
-        
-        
 
         # Create a COS spec
         def generate_spec(pd_name: str):
@@ -187,10 +188,10 @@ spec:
       partition: 0
       readOnly: false
 """
-        spec_str = pulumi.Output.all(
-            pd_name=data.name
-            ).apply(lambda args: generate_spec(args["pd_name"])) 
-        
+
+        spec_str = pulumi.Output.all(pd_name=data.name).apply(
+            lambda args: generate_spec(args["pd_name"])
+        )
 
         # Deploy COS instance
         cos_instance = gcp.compute.Instance(
@@ -200,23 +201,25 @@ spec:
                 "initialize_params": {
                     "image": COS_IMAGE,
                     "size": COS_DISK_SIZE,
-                    "type": "pd-standard"
+                    "type": "pd-standard",
                 }
             },
-            attached_disks=[{
-                    "device_name": data.name,
-                    "mode": "READ_WRITE",
-                    "source": data.name
-                }],
+            attached_disks=[
+                {"device_name": data.name, "mode": "READ_WRITE", "source": data.name}
+            ],
             tags=[git_tag.hex],
-            network_interfaces=[{
-                    "access_configs": [{
-                        "nat_ip": "",
-                        "network_tier": "STANDARD",
-                    }],
+            network_interfaces=[
+                {
+                    "access_configs": [
+                        {
+                            "nat_ip": "",
+                            "network_tier": "STANDARD",
+                        }
+                    ],
                     "subnetwork": "default",
                     "stack_type": "IPV4_ONLY",
-                }],
+                }
+            ],
             service_account={
                 "scopes": ["https://www.googleapis.com/auth/cloud-platform"]
             },
@@ -230,10 +233,13 @@ spec:
                 parent=self,
                 delete_before_replace=True,
                 replace_on_changes=["metadata"],
-                ))
+            ),
+        )
 
-        self.ip_addr = cos_instance.network_interfaces[0].apply(lambda iface: iface.access_configs[0].nat_ip)
-        
+        self.ip_addr = cos_instance.network_interfaces[0].apply(
+            lambda iface: iface.access_configs[0].nat_ip
+        )
+
         dns = gcp.dns.RecordSet(
             resource_name=name,
             name=f"{self.subdomain}.{env_dns_zone.dns_name}",
@@ -241,10 +247,10 @@ spec:
             ttl=300,
             managed_zone=env_dns_zone.name,
             rrdatas=[self.ip_addr],
-            opts=pulumi.ResourceOptions(parent=self))
+            opts=pulumi.ResourceOptions(parent=self),
+        )
 
         self.url = dns.name.apply(lambda domain: f"https://{domain.removesuffix('.')}/")
-
 
         """
         Might be automatable - https://docs.gitea.com/next/administration/command-line
@@ -275,7 +281,7 @@ spec:
     @property
     def name(self):
         return self.__name
-    
+
     @name.setter
     def name(self, value: str):
         regex = r"[a-z0-9-]+"
@@ -285,7 +291,7 @@ spec:
     @property
     def subdomain(self):
         return self.__subdomain
-    
+
     @subdomain.setter
     def subdomain(self, value: str):
         regex = r"[a-z0-9-]+"
@@ -295,9 +301,11 @@ spec:
     @property
     def dns_zone(self):
         return self.__dns_zone
-    
+
     @dns_zone.setter
     def dns_zone(self, value: str):
         regex = r"[a-z0-9]+-[a-z]+"
-        assert re.fullmatch(regex, value) is not None, f"GCP dns_zone must match {regex}"
+        assert (
+            re.fullmatch(regex, value) is not None
+        ), f"GCP dns_zone must match {regex}"
         self.__dns_zone = value
