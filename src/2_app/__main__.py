@@ -98,7 +98,7 @@ def main():
         auth_mount_accessor=google_auth.auth_accessor,
     )
 
-    red_team = GroupExternal(
+    spellshift = GroupExternal(
         name="spellshift",
         group_name="spellshift@hul.to",
         policies=["default"],
@@ -134,8 +134,16 @@ def main():
             lambda accessor: gen_accessor_template(accessor)
         ),
     )
-    pulumi.export("cloudflare_client_id", cloudflare_oidc.client_id)
-    pulumi.export("cloudflare_client_secret", cloudflare_oidc.client_secret)
+
+    harvester_cert = pki.create_cert(
+        name="harvester", domain="harvester.internal.galaxygridlabs.com"
+    )
+
+    rancher_cert = pki.create_cert(
+        name="rancher", domain="rancher.internal.galaxygridlabs.com"
+    )
+    pulumi.export("rancher_cert", rancher_cert[0])
+    pulumi.export("rancher_key", rancher_cert[1])
 
 
 if __name__ == "__main__":
