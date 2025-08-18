@@ -18,7 +18,7 @@
 		},
 		"ghcr.io/devcontainers-extra/features/pulumi:1": {
 			"bashCompletion": true,
-			"version": "3.137.0"
+			"version": "3.190.0"
 		},
 		"ghcr.io/devcontainers-extra/features/pylint:2": {
 			"version": "latest"
@@ -58,7 +58,7 @@
 	"workspaceFolder": "/workspaces/ggl_core_infra",
 	"postCreateCommand": {
 		"fixVolumePerms": "sudo chown -R $(whoami): /workspaces/ && sudo chown -R $(whoami): /commandhistory/ && cd /workspaces && git clone https://github.com/GalaxyGridLabs/ggl_core_infra.git && cd ggl_core_infra && python3 -m venv venv && source venv/bin/activate && pip3 install -r ./requirements.txt"
-	},	
+	},
 	"mounts": [
 		"source=ggl_core_infra-bashhistory-${devcontainerId},target=/commandhistory,type=volume"
 	]
