@@ -1,0 +1,15 @@
+Arpeggio==2.0.2
+attrs==25.3.0
+debugpy==1.8.16
+dill==0.4.0
+grpcio==1.74.0
+parver==0.5
+protobuf==5.29.5
+pulumi==3.190.0
+pulumi_ct @ file:///workspaces/ggl_core_infra/src/3_onprem/sdks/ct
+pulumi_harvester @ file:///workspaces/ggl_core_infra/src/3_onprem/sdks/harvester
+pulumiverse_time==0.1.1
+PyYAML==6.0.2
+semver==3.0.4
+setuptools==80.9.0
+wheel==0.45.1

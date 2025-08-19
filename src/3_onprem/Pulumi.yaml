@@ -1,0 +1,22 @@
+name: 3_onprem
+description: A minimal Python Pulumi program
+runtime:
+  name: python
+  options:
+    toolchain: pip
+    virtualenv: venv
+config:
+  pulumi:tags:
+    value:
+      pulumi:template: python
+packages:
+  harvester:
+    source: terraform-provider
+    version: 0.13.0
+    parameters:
+      - harvester/harvester
+  ct:
+    source: terraform-provider
+    version: 0.13.0
+    parameters:
+      - poseidon/ct

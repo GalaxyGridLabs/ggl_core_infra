@@ -119,3 +119,15 @@ gcloud compute instances delete $instance
 # Add root CA
 curl --output ~/Downloads/ggl-vault-ca.pem https://vault.galaxygridlabs.com/v1/pki/ca
 ```
+
+# OnPrem
+
+Set Provider
+```
+pulumi plugin install resource terraform-provider
+pulumi package add terraform-provider harvester/harvester
+pulumi package add terraform-provider poseidon/ct
+```
+
+
+Get the kubeconfig from Harvester
