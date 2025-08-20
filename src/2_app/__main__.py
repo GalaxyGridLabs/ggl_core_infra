@@ -142,8 +142,16 @@ def main():
     rancher_cert = pki.create_cert(
         name="rancher", domain="rancher.internal.galaxygridlabs.com"
     )
-    pulumi.export("rancher_cert", rancher_cert[0])
-    pulumi.export("rancher_key", rancher_cert[1])
+
+    openwebui_oidc = OIDCProvider(
+        name="openwebui",
+        redirect_uris=["https://ollama.astral-labs.work/oauth/oidc/callback"],
+        scope_template=google_auth.auth_accessor.apply(
+            lambda accessor: gen_accessor_template(accessor)
+        ),
+    )
+    pulumi.export("openwebui_oidc_client_id", openwebui_oidc.client_id)
+    pulumi.export("openwebui_oidc_client_secret", openwebui_oidc.client_secret)
 
 
 if __name__ == "__main__":
