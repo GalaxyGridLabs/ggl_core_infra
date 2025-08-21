@@ -143,6 +143,10 @@ def main():
         name="rancher", domain="rancher.internal.galaxygridlabs.com"
     )
 
+    synology_cert = pki.create_cert(
+        name="synology", domain="files.internal.galaxygridlabs.com"
+    )
+
     openwebui_oidc = OIDCProvider(
         name="openwebui",
         redirect_uris=["https://ollama.astral-labs.work/oauth/oidc/callback"],
