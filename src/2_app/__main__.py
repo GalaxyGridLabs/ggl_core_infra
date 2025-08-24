@@ -147,15 +147,15 @@ def main():
         name="synology", domain="files.internal.galaxygridlabs.com"
     )
 
-    openwebui_oidc = OIDCProvider(
-        name="openwebui",
-        redirect_uris=["https://ollama.astral-labs.work/oauth/oidc/callback"],
+    coder_oidc = OIDCProvider(
+        name="coder",
+        redirect_uris=["https://coder.astral-labs.work/api/v2/users/oidc/callback"],
         scope_template=google_auth.auth_accessor.apply(
             lambda accessor: gen_accessor_template(accessor)
         ),
     )
-    pulumi.export("openwebui_oidc_client_id", openwebui_oidc.client_id)
-    pulumi.export("openwebui_oidc_client_secret", openwebui_oidc.client_secret)
+    pulumi.export("coder_oidc_client_id", coder_oidc.client_id)
+    pulumi.export("coder_oidc_client_secret", coder_oidc.client_secret)
 
 
 if __name__ == "__main__":

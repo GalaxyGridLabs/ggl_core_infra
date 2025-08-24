@@ -3,11 +3,13 @@ import pulumi
 import pulumi_harvester as harvester
 import pulumi_ct as ct
 import pulumiverse_time as time
+import pulumi_random as random
 
 from shared.harvester.images import CONTAINER_SYSEXT_COMPOSE, DEFAULT_CONTAINER_IMAGE
 from shared.harvester.networks import DEFAULT_NETWORK
+from shared.cloudflare_tunnel.tunnel import Tunnel
 
-CODER_IMAGE = "docker.io/codercom/coder:1.44.7-rc.3@sha256:ee182b271aff3c99059d50c4f561d066c40ba0ccf0714b33a7ca041448dc9a3f"
+CODER_IMAGE = "ghcr.io/coder/coder:v2.25.1@sha256:e1f1878546a26a787a6ac34a4f83555aec75e6345e17eb49406a02f127787281"
 CODER_DISK_SIZE = "16Gi"
 CODER_PORT = 7080
 
@@ -26,14 +28,48 @@ class Coder(pulumi.ComponentResource):
     def __init__(self, name, namespace, opts=None):
         super().__init__("ggl:coder:Coder", name, {}, opts)
 
-        coder_db_username = "coder"
-        coder_db_password = "coder"
-        coder_db_database = "coder"
-        coder_ext_hostname = "coder.internal.galaxygridlabs.com"
+        password = random.RandomPassword(
+            "postgres_password", length=8, number=False, upper=False, special=False
+        )
 
+        coder_db_username = "coder"
+        coder_db_database = "coder"
+        coder_ext_hostname = "https://coder.astral-labs.work"
+
+        config = pulumi.Config()
+        coder_oidc_client_id = config.require("coder_oidc_client_id")
+        coder_oidc_client_secret = config.require("coder_oidc_client_secret")
+
+        def power_off(args: pulumi.ResourceHookArgs):
+            try:
+                vm = harvester.get_virtualmachine(name=name, namespace=namespace)
+                if vm.status.run_strategy != "Halted":
+                    pulumi.log.info(f"Powering off VM {vm.metadata.name} ({vm.id})")
+                    vm.status.run_strategy = "Halted"
+                else:
+                    pulumi.log.info(
+                        f"VM {vm.metadata.name} ({vm.id}) is already powered off"
+                    )
+            except Exception as e:
+                pulumi.log.warn(f"Could not power off VM {name}: {e}")
+
+        power_off_hook = pulumi.ResourceHook("power_off", power_off)
+
+        coder_tunnel = Tunnel(
+            name="coder",
+            opts=pulumi.ResourceOptions(
+                parent=self,
+                hooks=pulumi.ResourceHookBinding(before_delete=[power_off_hook]),
+            ),
+        )
+
+        pulumi.export("coder_tunnel_token", coder_tunnel.token)
         # Create a Harvester VM for the coder app
-        coder_config = ct.get_config(
-            content=f"""variant: flatcar
+        coder_config = pulumi.Output.all(
+            passwd=password.result, tunnel_token=coder_tunnel.token
+        ).apply(
+            lambda args: ct.get_config(
+                content=f"""variant: flatcar
 version: 1.0.0
 # This is a simple NGINX example.
 # Replace the below with your own config.
@@ -58,26 +94,37 @@ systemd:
         WantedBy=multi-user.target
 storage:
     filesystems:
-        - device: /dev/disk/by-uuid/be9ac778-32d7-49ca-838e-0bad4dc73db2
+        - device: /dev/disk/by-path/pci-0000:02:00.0
           format: ext4
           path: /data
           wipe_filesystem: false
     files:
+        - path: /etc/coder/cloudflared.env
+          mode: 0400
+          contents:
+            inline: |
+                TUNNEL_TOKEN={args['tunnel_token']}
         - path: /etc/coder/postgres.env
           mode: 0400
           contents:
             inline: |
                 POSTGRES_USER={coder_db_username}
-                POSTGRES_PASSWORD={coder_db_password}
+                POSTGRES_PASSWORD={args['passwd']}
                 POSTGRES_DB={coder_db_database}
                 PGDATA=/var/lib/postgresql/data
         - path: /etc/coder/coder.env
           mode: 0400
           contents:
             inline: |
-                CODER_PG_CONNECTION_URL: "postgresql://{coder_db_username}:{coder_db_password}@database/{coder_db_database}?sslmode=disable"
+                CODER_PG_CONNECTION_URL: "postgresql://{coder_db_username}:{args['passwd']}@database/{coder_db_database}?sslmode=disable"
                 CODER_HTTP_ADDRESS: "0.0.0.0:{CODER_PORT}"
                 CODER_ACCESS_URL: "{coder_ext_hostname}"
+                CODER_OIDC_ISSUER_URL="https://vault.galaxygridlabs.com/v1/identity/oidc/provider/coder"
+                CODER_OIDC_EMAIL_DOMAIN="hul.to"
+                CODER_OIDC_CLIENT_ID="{coder_oidc_client_id}"
+                CODER_OIDC_CLIENT_SECRET="{coder_oidc_client_secret}"
+                CODER_OIDC_IGNORE_EMAIL_VERIFIED=true
+                CODER_OIDC_SCOPES=openid,email,profile,coder
         - path: /etc/coder/docker-compose.yaml
           mode: 0600
           contents:
@@ -111,20 +158,27 @@ storage:
                             interval: 5s
                             timeout: 5s
                             retries: 5
+                    cloudflared:
+                        image: {CFTUNNEL_IMAGE}
+                        env_file: /etc/coder/cloudflared.env
+                        command: tunnel run --url http://coder:{CODER_PORT}
 kernel_arguments:
   should_exist:
     - flatcar.autologin
 """,
-            strict=True,
-            pretty_print=False,
-            snippets=[CONTAINER_SYSEXT_COMPOSE],
+                strict=True,
+                pretty_print=False,
+                snippets=[CONTAINER_SYSEXT_COMPOSE],
+            )
         )
 
         coder_data = harvester.Volume(
             resource_name=f"{name}data",
             namespace=namespace,
             size=CODER_DISK_SIZE,
-            opts=pulumi.ResourceOptions(parent=self),
+            opts=pulumi.ResourceOptions(
+                parent=self,
+            ),
         )
 
         coder_cloudinit = harvester.CloudinitSecret(
@@ -136,6 +190,7 @@ kernel_arguments:
 
         coder_vm = harvester.Virtualmachine(
             name,
+            name=name,
             namespace=namespace,
             cpu=2,
             memory="4Gi",
@@ -143,7 +198,7 @@ kernel_arguments:
             efi=True,
             disks=[
                 {
-                    "name": "rootdisk1",
+                    "name": "rootdisk",
                     "type": "disk",
                     "size": COS_DISK_SIZE,
                     "image": DEFAULT_CONTAINER_IMAGE,
