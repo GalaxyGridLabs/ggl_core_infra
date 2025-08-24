@@ -127,6 +127,13 @@ Set Provider
 pulumi plugin install resource terraform-provider
 pulumi package add terraform-provider harvester/harvester
 pulumi package add terraform-provider poseidon/ct
+
+pulumi config set --secret cloudflare:apiToken ....
+pulumi config set account_id 3bae1033ae023d5b0cf855b7586e645a
+pulumi config set zone_id ae356f5376ad34ed473e7dbbf9fa38b5
+pulumi config set zone "astral-labs.work"
+pulumi config set coder_oidc_client_id 2joXQcop6KBZUtxnNql9LMx3lhnCd2EM
+pulumi config set coder_oidc_client_secret --secret hvo_....
 ```
 
 
