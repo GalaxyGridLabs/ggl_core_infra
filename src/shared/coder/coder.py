@@ -63,6 +63,9 @@ class Coder(pulumi.ComponentResource):
             ),
         )
 
+        # TODO: Create service account for coder to connect to rancher.
+        # TODO: Should coder service account exist in GCP?
+        # TODO: Add kubeconfig.yaml
         pulumi.export("coder_tunnel_token", coder_tunnel.token)
         # Create a Harvester VM for the coder app
         coder_config = pulumi.Output.all(
@@ -124,7 +127,8 @@ storage:
                 CODER_OIDC_CLIENT_ID="{coder_oidc_client_id}"
                 CODER_OIDC_CLIENT_SECRET="{coder_oidc_client_secret}"
                 CODER_OIDC_IGNORE_EMAIL_VERIFIED=true
-                CODER_OIDC_SCOPES=openid,email,profile,coder
+                CODER_OIDC_ALLOWED_GROUPS=labadmins@hul.to,labusers@hul.to
+                CODER_OIDC_SCOPES=openid,email,profile,coder,groups
         - path: /etc/coder/docker-compose.yaml
           mode: 0600
           contents:
@@ -229,7 +233,7 @@ kernel_arguments:
             },
             opts=pulumi.ResourceOptions(
                 parent=self,
-                replace_on_changes=["*"],
+                replace_on_changes=["cloudinit"],
                 delete_before_replace=True,
             ),
         )

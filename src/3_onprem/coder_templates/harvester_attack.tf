@@ -24,6 +24,15 @@ provider "harvester" {
   kubeconfig = "/kubeconfig.yaml"
 }
 
+module "kasmvnc" {
+  count               = data.coder_workspace.me.start_count
+  source              = "registry.coder.com/coder/kasmvnc/coder"
+  version             = "1.2.2"
+  agent_id            = coder_agent.dev.id
+  desktop_environment = "xfce"
+  subdomain           = false
+}
+
 data "coder_provisioner" "me" {}
 
 data "coder_workspace" "me" {}
@@ -34,23 +43,8 @@ data "coder_workspace_owner" "me" {}
 locals {
   oses = [
     {
-      name = "Ubuntu Server 24.04 LTS (Noble)",
-      value = "harvester-public/ubuntu-server-noble-24.04",
-    },
-    {
-      name = "Debian 12 (Bookworm)",
-      value = "harvester-public/debian-bookworm-12",
-    },
-    {
       name = "Kali Linux 2025.2",
       value = "harvester-public/image-fcs7g",
-    },
-  ]
-
-  git_repos = [
-    {
-      name = "Realm",
-      value = "https://github.com/spellshift/realm.git"
     },
   ]
 
@@ -65,7 +59,7 @@ data "coder_parameter" "os_select" {
   name = "os_select"
   display_name = "Choose your operating system"
   form_type = "dropdown"
-  default = "harvester-public/ubuntu-server-noble-24.04"
+  default = "harvester-public/image-fcs7g"
   order = 1
   mutable = true
 
@@ -183,6 +177,8 @@ package_upgrade: true
 packages:
   - qemu-guest-agent
   - git
+  - kali-desktop-xfce
+  - libdatetime-perl
 write_files:
   - path: /etc/ssh/ca_user_key.pub
     content: |
@@ -221,7 +217,8 @@ users:
 runcmd:
   - ["systemctl", "daemon-reload"]
   - ["systemctl", "enable", "--now", "qemu-guest-agent.service"]
-  - ["systemctl", "enable", "--now", "coder-agent.service"]
+  - ["systemctl", "enable", "coder-agent.service"]
+  - ["reboot"]
 EOT
   }
 }
