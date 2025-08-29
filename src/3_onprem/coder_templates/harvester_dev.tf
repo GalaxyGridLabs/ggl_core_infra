@@ -37,19 +37,19 @@ module "code-server" {
   agent_id = coder_agent.dev[0].id
 }
 
+module "devcontainers-cli" {
+  count    = data.coder_workspace.me.start_count
+  source   = "dev.registry.coder.com/modules/devcontainers-cli/coder"
+  agent_id = coder_agent.dev[0].id
+}
+
+
+
 locals {
   oses = [
     {
       name = "Ubuntu Server 24.04 LTS (Noble)",
       value = "harvester-public/ubuntu-server-noble-24.04",
-    },
-    {
-      name = "Debian 12 (Bookworm)",
-      value = "harvester-public/debian-bookworm-12",
-    },
-    {
-      name = "Kali Linux 2025.2",
-      value = "harvester-public/image-fcs7g",
     },
   ]
 
@@ -60,6 +60,7 @@ locals {
     },
   ]
 
+  home_dir = "/workspace"
   network_name = "harvester-public/harvester-public-net"
   image_namespace = "harvester-public"
   username = data.coder_workspace_owner.me.name
@@ -140,7 +141,7 @@ resource "coder_agent" "dev" {
   arch = "amd64"
   os   = "linux"
   auth = "token"
-  dir = "/workspace"
+  dir = local.home_dir
   connection_timeout = 480
 
   display_apps {
@@ -191,13 +192,21 @@ package_upgrade: true
 packages:
   - qemu-guest-agent
   - git
+  - npm
+  - docker-ce
+  - docker-ce-cli
+apt:
+  sources:
+    docker.list:
+      source: deb [arch=amd64] https://download.docker.com/linux/ubuntu $RELEASE stable
+      keyid: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88
 fs_setup:
   - device: /dev/vdb
     filesystem: 'ext4'
     label: 'mydata'
     overwrite: false
 mounts:
-  - [ vdb, /workspace ]
+  - [ vdb, ${local.home_dir} ]
 write_files:
   - path: /etc/ssh/ca_user_key.pub
     content: |
@@ -205,11 +214,20 @@ write_files:
   - path: /etc/ssh/sshd_config.d/99-coder.conf
     content: |
       TrustedUserCAKeys /etc/ssh/ca_user_key.pub
+  - path: /etc/profile.d/local_env.sh
+    content: |
+      export PATH="$PATH:~/.local/bin"
   - path: /etc/setup.sh
     encoding: b64
     content: ${base64encode(coder_agent.dev[0].init_script)}
     owner: 'root:root'
     permissions: '0755'
+  - path: /etc/coder.env
+    content: |
+      CODER_AGENT_TOKEN=${coder_agent.dev[0].token}
+      CODER_AGENT_DEVCONTAINERS_ENABLE=true
+      PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:${local.home_dir}/.local/bin"
+    owner: 'root:root'
   - path: /etc/systemd/system/coder-agent.service
     content: |
       [Unit]
@@ -218,7 +236,7 @@ write_files:
 
       [Service]
       Type=simple
-      Environment="CODER_AGENT_TOKEN=${coder_agent.dev[0].token}"
+      EnvironmentFile=/etc/coder.env
       User=${local.username}
       ExecStart=/etc/setup.sh
       Restart=on-failure
@@ -229,17 +247,20 @@ write_files:
 users:
   - name: ${local.username}
     sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: [docker]
     shell: /bin/bash
-    homedir: /workspace
+    homedir: ${local.home_dir}
     ssh_authorized_keys:
       - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMOTygNEK4LTfZwV1Pqf9vX5AECGXDe3paaFhiJsJvUU hulto@axe.local
 runcmd:
   - ["systemctl", "daemon-reload"]
   - ["systemctl", "enable", "--now", "qemu-guest-agent.service"]
   - ["systemctl", "enable", "--now", "coder-agent.service"]
-  - ["cp", "-ar", "/etc/skel/.", "/workspace"]
-  - ["chown", "-R", "${local.username}:${local.username}", "/workspace"]
-  - ["chmod", "700", "/workspace/"]
+  - ["cp", "-ar", "/etc/skel/.", "${local.home_dir}"]
+  - ["mkdir", "-p", "${local.home_dir}/.local/bin"]
+  - ["chown", "-R", "${local.username}:${local.username}", "${local.home_dir}"]
+  - ["chmod", "700", "${local.home_dir}/"]
+  - ["npm", "config", "set", "-g", "prefix", "${local.home_dir}/.local/"]
 EOT
   }
 }
