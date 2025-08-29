@@ -30,12 +30,12 @@ data "coder_workspace" "me" {}
 
 data "coder_workspace_owner" "me" {}
 
-# module "code-server" {
-#   count    = data.coder_workspace.me.start_count
-#   source   = "registry.coder.com/coder/code-server/coder"
-#   version  = "1.3.1"
-#   agent_id = coder_agent.example.id
-# }
+module "code-server" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/code-server/coder"
+  version  = "1.3.1"
+  agent_id = coder_agent.dev[0].id
+}
 
 locals {
   oses = [
