@@ -30,6 +30,12 @@ data "coder_workspace" "me" {}
 
 data "coder_workspace_owner" "me" {}
 
+# module "code-server" {
+#   count    = data.coder_workspace.me.start_count
+#   source   = "registry.coder.com/coder/code-server/coder"
+#   version  = "1.3.1"
+#   agent_id = coder_agent.example.id
+# }
 
 locals {
   oses = [
@@ -130,6 +136,7 @@ data "coder_parameter" "disk_select" {
 }
 
 resource "coder_agent" "dev" {
+  count        = data.coder_workspace.me.start_count
   arch = "amd64"
   os   = "linux"
   auth = "token"
@@ -169,6 +176,7 @@ resource "coder_agent" "dev" {
 }
 
 data "cloudinit_config" "startup" {
+  count        = data.coder_workspace.me.start_count
   gzip          = false
   base64_encode = false
 
@@ -183,6 +191,13 @@ package_upgrade: true
 packages:
   - qemu-guest-agent
   - git
+fs_setup:
+  - device: /dev/vdb
+    filesystem: 'ext4'
+    label: 'mydata'
+    overwrite: false
+mounts:
+  - [ vdb, /workspace ]
 write_files:
   - path: /etc/ssh/ca_user_key.pub
     content: |
@@ -192,7 +207,7 @@ write_files:
       TrustedUserCAKeys /etc/ssh/ca_user_key.pub
   - path: /etc/setup.sh
     encoding: b64
-    content: ${base64encode(coder_agent.dev.init_script)}
+    content: ${base64encode(coder_agent.dev[0].init_script)}
     owner: 'root:root'
     permissions: '0755'
   - path: /etc/systemd/system/coder-agent.service
@@ -203,7 +218,7 @@ write_files:
 
       [Service]
       Type=simple
-      Environment="CODER_AGENT_TOKEN=${coder_agent.dev.token}"
+      Environment="CODER_AGENT_TOKEN=${coder_agent.dev[0].token}"
       User=${local.username}
       ExecStart=/etc/setup.sh
       Restart=on-failure
@@ -222,19 +237,29 @@ runcmd:
   - ["systemctl", "daemon-reload"]
   - ["systemctl", "enable", "--now", "qemu-guest-agent.service"]
   - ["systemctl", "enable", "--now", "coder-agent.service"]
+  - ["cp", "-ar", "/etc/skel/.", "/workspace"]
+  - ["chown", "-R", "${local.username}:${local.username}", "/workspace"]
+  - ["chmod", "700", "/workspace/"]
 EOT
   }
 }
 
 resource "harvester_cloudinit_secret" "coder-vm-init" {
+  count        = data.coder_workspace.me.start_count
   name = "coder-vm-init-${local.username}-${data.coder_workspace.me.name}"
   namespace     = var.vm-namespace
-  user_data     = data.cloudinit_config.startup.rendered
+  user_data     = data.cloudinit_config.startup[0].rendered
 }
 
 data "harvester_image" "vm_image" {
   name      = split("/", data.coder_parameter.os_select.value)[1]
-  namespace = local.image_namespace
+  namespace = split("/", data.coder_parameter.os_select.value)[0]
+}
+
+resource "harvester_volume" "workspace" {
+  name      = "coder-${local.username}-${data.coder_workspace.me.name}-workspace"
+  namespace = var.vm-namespace
+  size      = "${data.coder_parameter.disk_select.value}Gi"
 }
 
 resource "harvester_virtualmachine" "coder-vm" {
@@ -260,7 +285,7 @@ resource "harvester_virtualmachine" "coder-vm" {
   disk {
     name       = "rootdisk"
     type       = "disk"
-    size       = "${data.coder_parameter.disk_select.value}Gi"
+    size       = "16Gi"
     bus        = "virtio"
     boot_order = 1
 
@@ -268,10 +293,14 @@ resource "harvester_virtualmachine" "coder-vm" {
     auto_delete = true
   }
 
-  cloudinit {
-    user_data_secret_name = harvester_cloudinit_secret.coder-vm-init.name
+  disk {
+    name       = "workspace"
+    type       = "disk"
+    existing_volume_name = harvester_volume.workspace.name
+    auto_delete = false
   }
-  lifecycle {
-    replace_triggered_by = [ data. cloudinit_config.startup.rendered ]
+
+  cloudinit {
+    user_data_secret_name = harvester_cloudinit_secret.coder-vm-init[0].name
   }
 }
