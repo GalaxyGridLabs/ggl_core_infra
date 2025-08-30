@@ -174,6 +174,23 @@ resource "coder_agent" "dev" {
     timeout      = 1
   }
 
+  metadata {
+    display_name = "Workspace disk Usage"
+    key  = "wrk_disk"
+    script = "df -h --output=pcent /workspace/ | tail -1"
+    interval = 10
+    timeout = 1
+  }
+
+  metadata {
+    display_name = "Root disk Usage"
+    key  = "root_disk"
+    script = "df -h --output=pcent / | tail -1"
+    interval = 10
+    timeout = 1
+  }
+
+
 }
 
 data "cloudinit_config" "startup" {
@@ -217,6 +234,11 @@ write_files:
   - path: /etc/profile.d/local_env.sh
     content: |
       export PATH="$PATH:~/.local/bin"
+  - path: /etc/docker/daemon.json
+    content: |
+      {
+        "data-root": "/workspace/.docker-data/"
+      }
   - path: /etc/setup.sh
     encoding: b64
     content: ${base64encode(coder_agent.dev[0].init_script)}
@@ -323,5 +345,9 @@ resource "harvester_virtualmachine" "coder-vm" {
 
   cloudinit {
     user_data_secret_name = harvester_cloudinit_secret.coder-vm-init[0].name
+  }
+
+  lifecycle {
+    replace_triggered_by = [ harvester_cloudinit_secret.coder-vm-init[0].user_data ]
   }
 }
