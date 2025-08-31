@@ -134,6 +134,7 @@ pulumi config set zone_id ae356f5376ad34ed473e7dbbf9fa38b5
 pulumi config set zone "astral-labs.work"
 pulumi config set coder_oidc_client_id 2joXQcop6KBZUtxnNql9LMx3lhnCd2EM
 pulumi config set coder_oidc_client_secret --secret hvo_....
+pulumi config set kubeconfig --secret "$(cat ../../svccoder_harvester.yaml)"
 ```
 
 

@@ -1,3 +1,4 @@
+import base64
 import re
 import pulumi
 import pulumi_harvester as harvester
@@ -69,13 +70,13 @@ class Coder(pulumi.ComponentResource):
         pulumi.export("coder_tunnel_token", coder_tunnel.token)
         # Create a Harvester VM for the coder app
         coder_config = pulumi.Output.all(
-            passwd=password.result, tunnel_token=coder_tunnel.token
+            kubeconfig=config.require_secret("kubeconfig"),
+            passwd=password.result,
+            tunnel_token=coder_tunnel.token,
         ).apply(
             lambda args: ct.get_config(
                 content=f"""variant: flatcar
 version: 1.0.0
-# This is a simple NGINX example.
-# Replace the below with your own config.
 # Refer to https://www.flatcar.org/docs/latest/provisioning/config-transpiler/configuration/ for more information.
 systemd:
   units:
@@ -84,8 +85,9 @@ systemd:
       contents: |
         [Unit]
         Description=CODER App
-        After=docker.service
+        After=setupscripts.service
         Requires=docker.service
+        Requires=data.mount
         [Service]
         TimeoutStartSec=0
         WorkingDirectory=/etc/coder/
@@ -95,18 +97,49 @@ systemd:
         RestartSec=5s
         [Install]
         WantedBy=multi-user.target
+    - name: setupscripts.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Run arbitrary setup scripts
+        After=docker.service
+        Requires=docker.service
+        Requires=data.mount
+        [Service]
+        TimeoutStartSec=0
+        WorkingDirectory=/etc/coder/
+        ExecStart=/etc/coder/setupscripts.sh
+        Restart=never
+        [Install]
+        WantedBy=multi-user.target
 storage:
     filesystems:
         - device: /dev/disk/by-path/pci-0000:02:00.0
           format: ext4
-          path: /data
           wipe_filesystem: false
+          with_mount_unit: true
+          mount_options:
+            - rw
+          path: /data
     files:
+        - path: /etc/coder/kubeconfig_b64.yaml
+          mode: 0400
+          contents:
+            inline: {base64.b64encode(args['kubeconfig'].encode()).decode()}
         - path: /etc/coder/cloudflared.env
           mode: 0400
           contents:
             inline: |
                 TUNNEL_TOKEN={args['tunnel_token']}
+        - path: /etc/coder/setupscripts.sh
+          mode: 0500
+          contents:
+            inline: |
+                #!/bin/bash
+                cat /etc/coder/kubeconfig_b64.yaml | base64 -d > /etc/coder/kubeconfig.yaml
+                chown -R 1000:1000 /data/coder/
+                systemctl disable setupscripts.service
+                touch /done
         - path: /etc/coder/postgres.env
           mode: 0400
           contents:
@@ -144,6 +177,8 @@ storage:
                         group_add:
                           - "233" # docker group on host
                         volumes:
+                          - /data/coder:/home/coder
+                          - /etc/coder/kubeconfig.yaml:/kubeconfig.yaml:ro
                           - /var/run/docker.sock:/var/run/docker.sock
                         depends_on:
                             database:
@@ -152,7 +187,7 @@ storage:
                         image: {POSTGRES_IMAGE}
                         env_file: /etc/coder/postgres.env
                         volumes:
-                          - /data:/var/lib/postgresql/data # Use "docker volume rm coder_coder_data" to reset Coder
+                          - /data/postgres:/var/lib/postgresql/data # Use "docker volume rm coder_coder_data" to reset Coder
                         healthcheck:
                             test:
                               [
@@ -215,8 +250,6 @@ kernel_arguments:
                     "type": "disk",
                     "auto_delete": False,
                     "existing_volume_name": coder_data.name,
-                    "size": CODER_DISK_SIZE,
-                    "image": DEFAULT_CONTAINER_IMAGE,
                     "bus": "virtio",
                     "hot_plug": True,
                 },
@@ -233,7 +266,7 @@ kernel_arguments:
             },
             opts=pulumi.ResourceOptions(
                 parent=self,
-                replace_on_changes=["cloudinit"],
+                replace_on_changes=["*"],
                 delete_before_replace=True,
             ),
         )
