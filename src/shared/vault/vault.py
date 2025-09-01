@@ -7,7 +7,7 @@ import re
 
 from ..constants import DAYS
 
-VAULT_IMAGE = "docker.io/hashicorp/vault:1.20.0@sha256:5cd2003247e0a574a66c66aee1916b1e9e7f99640298f2e61271a8842d2d2a19"
+VAULT_IMAGE = "docker.io/hashicorp/vault:1.20.3@sha256:1262354cd28697b7982ea3b9b6f159a996bdaad0b5270765e31b67797ce15bea"
 VAULT_PORT = 8200
 VAULT_MACHINE_TYPE = "f1-micro"
 
