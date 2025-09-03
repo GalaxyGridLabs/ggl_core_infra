@@ -177,7 +177,7 @@ resource "coder_agent" "dev" {
   metadata {
     display_name = "Workspace disk Usage"
     key  = "wrk_disk"
-    script = "df -h --output=pcent /workspace/ | tail -1"
+    script = "df -h --output=used,avail,pcent /workspace/ | tail -1 | awk -F ' ' '{print $1 \"/\" $2 \" (\" $3 \")\" }'"
     interval = 10
     timeout = 1
   }
@@ -185,7 +185,7 @@ resource "coder_agent" "dev" {
   metadata {
     display_name = "Root disk Usage"
     key  = "root_disk"
-    script = "df -h --output=pcent / | tail -1"
+    script = "df -h --output=used,avail,pcent / | tail -1 | awk -F ' ' '{print $1 \"/\" $2 \" (\" $3 \")\" }'"
     interval = 10
     timeout = 1
   }
@@ -228,7 +228,7 @@ write_files:
   - path: /etc/ssh/ca_user_key.pub
     content: |
       ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCp+DQ/EFCKh7Shmo0KhbJN+WHGONDa1cAJ58WumJixrisOXN58euv69QeTMyclpPQluLchRJcIjJcfkWD7s9p5UEzHO+Gca7vaUWpeoyOl5OIWPMW47GcY3Y+H1h4g9mhIfKpbJP2OXNZNBMoSv/94vn5jvU4yAz2dyIp7Qw5Kdy1Vk/hr4kxWr3q++0xU0hOnZ0E1yG7U1ybd9XolKkUnyOGl4sxt5sgv+pQQWoSblPlqVUjaq7/WjF33fbnV2316C/MufNk0K5caAWS4lA3xiw0mF0MHhW04D64xoQvoepUP6awY0HG8LPYcTCY7hpvFNxwJoWn5UpoRaZciE2p1BxWPHqYWwTx0uhJ0MWxOLa7mkBV0c+QEyl3iNDi41gnHElW2yvb1e5GMAWdNMLF21BP8VAnba0Rt0APGNQxUAmNHsXRtF03tkhVITrKw3yEC3NIHiIVQSWJF3H+ehO1SV1n0onWqgkCawkmTe0A+gOW+5G11heEbyNtLHUmxp46wWejPrb1z86ePUgpMCAXstNPYVcxmIcEgBFW/kuxNjF6VIAMzzlHfXZdQQWOT/jAXJPBkrawjVn+DAKxxN1v3RnkK9AzIKE7olmgp8rbVXichIOZUaERfL5kRYMvQvwE4YNU6UnYEA1SexPF/PPCvTZSsrEzFLcNXMNW1FcCjNw==
-  - path: /etc/ssh/sshd_config.d/99-coder.conf
+  - path: /etc/ssh/sshd_config.d/99-ggl-vault.conf
     content: |
       TrustedUserCAKeys /etc/ssh/ca_user_key.pub
   - path: /etc/profile.d/local_env.sh
@@ -274,6 +274,11 @@ users:
     homedir: ${local.home_dir}
     ssh_authorized_keys:
       - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMOTygNEK4LTfZwV1Pqf9vX5AECGXDe3paaFhiJsJvUU hulto@axe.local
+  - name: sysadmin
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: [docker]
+    shell: /bin/bash
+    homedir: /home/sysadmin
 runcmd:
   - ["systemctl", "daemon-reload"]
   - ["systemctl", "enable", "--now", "qemu-guest-agent.service"]
