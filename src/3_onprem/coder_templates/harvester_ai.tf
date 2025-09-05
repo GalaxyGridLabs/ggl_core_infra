@@ -20,9 +20,20 @@ variable "vm-namespace" {
   description = "The harvester namespace to deploy VMs into"
 }
 
+variable "anthropic_api_key" {
+  type = string
+  description = "Anthropic API KEY"
+}
+
 variable "openai_api_key" {
   type = string
-  description = "API KEy"
+  description = "OPENAI API KEY"
+}
+
+variable "openwebui-domain" {
+  type = string
+  description = "Public hostname of open web UI in cloudflare"
+  default = "ollama-tcp.astral-labs.work"
 }
 
 provider "harvester" {
@@ -35,13 +46,105 @@ data "coder_workspace" "me" {}
 
 data "coder_workspace_owner" "me" {}
 
-module "code-server" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/code-server/coder"
-  version  = "1.3.1"
-  subdomain = false
-  agent_id = coder_agent.dev[0].id
+
+locals {
+  oses = [
+    {
+      name = "Ubuntu Server 24.04 LTS (Noble)",
+      value = "harvester-public/ubuntu-server-noble-24.04",
+    },
+  ]
+
+  git_repos = [
+    {
+      name = "Realm",
+      value = "https://github.com/spellshift/realm.git"
+    },
+  ]
+
+  home_dir = "/workspace"
+  network_name = "harvester-public/harvester-public-net"
+  image_namespace = "harvester-public"
+  username = data.coder_workspace_owner.me.name
+  is_admin = contains(data.coder_workspace_owner.me.groups, "admin")
 }
+
+
+data "coder_parameter" "os_select" {
+  name = "os_select"
+  display_name = "Choose your operating system"
+  form_type = "dropdown"
+  default = "harvester-public/ubuntu-server-noble-24.04"
+  order = 1
+  mutable = true
+
+  dynamic "option" {
+    for_each = local.oses
+    content {
+      name        = option.value.name
+      value       = option.value.value
+    }
+  }
+}
+
+data "coder_parameter" "cpu_select" {
+  name = "cpu_slider"
+  display_name = "CPU Cores Slider"
+  description = "Select CPU cores to provision your VM with"
+
+  type = "number"
+  form_type = "slider"
+  order = data.coder_parameter.os_select.order + 1
+  default = 4
+  mutable = true
+
+  validation {
+    min = 1
+    max = 16
+  }
+}
+
+data "coder_parameter" "mem_select" {
+  name = "mem_slider"
+  display_name = "Memory select"
+  description = "Select memory gigabytes to provision your VM with"
+
+  type = "number"
+  form_type = "slider"
+  order = data.coder_parameter.cpu_select.order + 1
+  default = 8
+  mutable = true
+
+  validation {
+    min = 1
+    max = 32
+  }
+}
+
+data "coder_parameter" "disk_select" {
+  name = "disk_slider"
+  display_name = "Disk select"
+  description = "Select disk size in gigabytes to provision your VM with"
+
+  type = "number"
+  form_type = "slider"
+  order = data.coder_parameter.mem_select.order + 1
+  default = 32
+  mutable = true
+
+  validation {
+    min = 12
+    max = 128
+  }
+}
+
+# module "code-server" {
+#   count    = data.coder_workspace.me.start_count
+#   source   = "registry.coder.com/coder/code-server/coder"
+#   version  = "1.3.1"
+#   subdomain = false
+#   agent_id = coder_agent.dev[0].id
+# }
 
 # module "devcontainers-cli" {
 #   count    = data.coder_workspace.me.start_count
@@ -62,12 +165,12 @@ module "code-server" {
 #   ai_api_key  = var.openai_api_key
 # }
 
-module "coder-login" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/coder-login/coder"
-  version  = "1.1.0"
-  agent_id = coder_agent.dev[0].id
-}
+# module "coder-login" {
+#   count    = data.coder_workspace.me.start_count
+#   source   = "registry.coder.com/coder/coder-login/coder"
+#   version  = "1.1.0"
+#   agent_id = coder_agent.dev[0].id
+# }
 
 # module "gemini" {
 #   count    = data.coder_workspace.me.start_count
@@ -79,95 +182,50 @@ module "coder-login" {
 #   folder      = "${local.home_dir}/project"
 # }
 
-# module "goose" {
-#   count    = data.coder_workspace.me.start_count
-#   source           = "registry.coder.com/coder/goose/coder"
-#   version          = "2.1.1"
-#   agent_id         = coder_agent.dev[0].id
-#   folder           = "${local.home_dir}/project"
-#   subdomain        = false
-#   install_goose    = true
-#   goose_version    = "v1.0.31"
-#   goose_provider   = "google"
-#   goose_model      = "gemini-2.5-pro"
-#   agentapi_version = "latest"
-# }
+module "goose" {
+  source = "github.com/hulto/registry//registry/coder/modules/goose"
+  count    = data.coder_workspace.me.start_count
+  # source           = "registry.coder.com/coder/goose/coder"
+  # version          = "2.1.1"
+  agent_id         = coder_agent.dev[0].id
+  folder           = "${local.home_dir}"
+  subdomain        = false
+  install_goose    = true
+  goose_provider   = "openai"
+  goose_model      = "qwen2.5-coder:7b"
+  pre_install_script = "echo 'LOGIN TO CLOUDFLARE ‼️'; cloudflared access login ${var.openwebui-domain} 2>&1 && /bin/bash -c \"nohup cloudflared access tcp --hostname ${var.openwebui-domain} --url 127.0.0.1:8080 2>/dev/null > /dev/null < /dev/null & disown %%\""
+}
 
 # module "claude-code" {
 #   count    = data.coder_workspace.me.start_count
 #   source              = "registry.coder.com/coder/claude-code/coder"
 #   version             = "2.2.0"
 #   agent_id            = coder_agent.dev[0].id
-#   folder              = "${local.home_dir}/project"
+#   folder              = "${local.home_dir}"
 #   install_claude_code = true
 #   subdomain           = false
 #   claude_code_version = "latest"
 # }
 
+module "code-server" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/code-server/coder"
+  version  = "1.3.1"
+  subdomain = false
+  agent_id = coder_agent.dev[0].id
+}
 
-locals {
-  oses = [
-    {
-      name = "Ubuntu Server 24.04 LTS (Noble)",
-      value = "harvester-public/ubuntu-server-noble-24.04",
-    },
-  ]
-
-  home_dir = "/home/coder"
-  network_name = "harvester-public/harvester-public-net"
-  username = data.coder_workspace_owner.me.name
-  is_admin = contains(data.coder_workspace_owner.me.groups, "admin")
+module "devcontainers-cli" {
+  count    = data.coder_workspace.me.start_count
+  source   = "dev.registry.coder.com/modules/devcontainers-cli/coder"
+  agent_id = coder_agent.dev[0].id
 }
 
 
 data "coder_parameter" "ai_prompt" {
-  name = "AI Prompt"
-  display_name = "AI Prompt"
-  description = "Prompt for the AI companion"
-
-  type = "string"
-  form_type = "input"
-  order = 1
-  mutable = true
-}
-
-
-# resource "coder_ai_task" "aichat" {
-#   count        = data.coder_workspace.me.start_count
-#   sidebar_app {
-#     id = coder_app.aider-chat[0].id
-#   }
-# }
-
-# resource "coder_app" "gemini-chat" {
-#   count        = data.coder_workspace.me.start_count
-#   agent_id     = coder_agent.dev[0].id
-#   slug         = "gemini-chat"
-#   display_name = "Gemini Chat"
-#   icon         = "${data.coder_workspace.me.access_url}/icon/gemini.svg"
-#   url          = "http://localhost:3284"
-#   share        = "owner"
-#   subdomain    = false
-#   open_in      = "tab"
-#   healthcheck {
-#     url       = "http://localhost:3284"
-#     interval  = 5
-#     threshold = 6
-#   }
-# }
-
-
-resource "coder_script" "nightly_update" {
-  count        = data.coder_workspace.me.start_count
-  agent_id     = coder_agent.dev[0].id
-  display_name = "Debugging"
-  icon         = "/icon/database.svg"
-  cron         = "* * * * * *" # Run at 22:00 (10 PM) every day
-  # run_on_start = true
-  script       = <<EOF
-    #!/bin/sh
-    touch /home/coder/win 2>&1 > /tmp/touch
-  EOF
+  name         = "AI Prompt"
+  display_name = "ai_prompt"
+  type         = "string"
 }
 
 resource "coder_agent" "dev" {
@@ -190,12 +248,29 @@ resource "coder_agent" "dev" {
     GIT_AUTHOR_EMAIL    = "${data.coder_workspace_owner.me.email}"
     GIT_COMMITTER_NAME  = coalesce(data.coder_workspace_owner.me.full_name, local.username)
     GIT_COMMITTER_EMAIL = "${data.coder_workspace_owner.me.email}"
-    CODER_MCP_CLAUDE_SYSTEM_PROMPT = <<-EOT
+    # ANTHROPIC_API_KEY              = var.anthropic_api_key
+    GOOSE_TASK_PROMPT   = data.coder_parameter.ai_prompt.value
+    GOOSE_SYSTEM_PROMPT = <<-EOT
       You are a helpful assistant that can help write code.
+
+      Run all long running tasks (e.g. npm run dev) in the background and not in the foreground.
+
+      Periodically check in on background tasks.
+
+      Notify Coder of the status of the task before and after your steps.
     EOT
-    CODER_MCP_CLAUDE_TASK_PROMPT   = data.coder_parameter.ai_prompt.value
-    CODER_MCP_CLAUDE_API_KEY = var.openai_api_key
-    CODER_MCP_APP_STATUS_SLUG = "claude-code"
+    OPENAI_API_KEY = var.openai_api_key
+    OPENAI_HOST = "http://127.0.0.1:8080/api/"
+    # CODER_MCP_CLAUDE_API_KEY       = var.anthropic_api_key # or use a coder_parameter
+    # CODER_MCP_CLAUDE_TASK_PROMPT   = data.coder_parameter.ai_prompt.value
+    # CODER_MCP_APP_STATUS_SLUG      = "claude-code"
+    # CODER_MCP_CLAUDE_SYSTEM_PROMPT = <<-EOT
+    #   You are a helpful assistant that can help with code.
+    # EOT
+    AGENTAPI_ALLOWED_HOSTS = "*"
+    AGENTAPI_ALLOWED_ORIGINS = "*"
+
+
   }
 
   metadata {
@@ -217,7 +292,7 @@ resource "coder_agent" "dev" {
   metadata {
     display_name = "Workspace disk Usage"
     key  = "wrk_disk"
-    script = "df -h --output=used,avail,pcent ${local.home_dir} | tail -1 | awk -F ' ' '{print $1 \"/\" $2 \" (\" $3 \")\" }'"
+    script = "df -h --output=used,avail,pcent /workspace/ | tail -1 | awk -F ' ' '{print $1 \"/\" $2 \" (\" $3 \")\" }'"
     interval = 10
     timeout = 1
   }
@@ -245,7 +320,7 @@ data "cloudinit_config" "startup" {
     # limit access to KV based on user name
     content = <<EOT
 #cloud-config
-package_upgrade: true
+package_update: true
 packages:
   - qemu-guest-agent
   - git
@@ -257,6 +332,13 @@ apt:
     docker.list:
       source: deb [arch=amd64] https://download.docker.com/linux/ubuntu $RELEASE stable
       keyid: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88
+fs_setup:
+  - device: /dev/vdb
+    filesystem: 'ext4'
+    label: 'mydata'
+    overwrite: false
+mounts:
+  - [ vdb, ${local.home_dir} ]
 write_files:
   - path: /etc/ssh/ca_user_key.pub
     content: |
@@ -270,7 +352,7 @@ write_files:
   - path: /etc/docker/daemon.json
     content: |
       {
-        "data-root": "${local.home_dir}/.docker-data/"
+        "data-root": "/workspace/.docker-data/"
       }
   - path: /etc/setup.sh
     encoding: b64
@@ -317,8 +399,9 @@ runcmd:
   - ["systemctl", "enable", "--now", "qemu-guest-agent.service"]
   - ["systemctl", "enable", "--now", "coder-agent.service"]
   - ["cp", "-ar", "/etc/skel/.", "${local.home_dir}"]
-  - ["mkdir", "-p", "${local.home_dir}/.local/bin", "${local.home_dir}/.local/share", "${local.home_dir}/.cache"]
-  - ["git", "clone", "https://github.com/spellshift/realm.git", "${local.home_dir}/project"]
+  - ["mkdir", "-p", "${local.home_dir}/.local/bin"]
+  - ["wget", "-O", "${local.home_dir}/.local/bin/cloudflared", "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64"]
+  - ["chmod", "+x", "${local.home_dir}/.local/bin/cloudflared"]
   - ["chown", "-R", "${local.username}:${local.username}", "${local.home_dir}"]
   - ["chmod", "700", "${local.home_dir}/"]
   - ["npm", "config", "set", "-g", "prefix", "${local.home_dir}/.local/"]
@@ -333,10 +416,15 @@ resource "harvester_cloudinit_secret" "coder-vm-init" {
   user_data     = data.cloudinit_config.startup[0].rendered
 }
 
+data "harvester_image" "vm_image" {
+  name      = split("/", data.coder_parameter.os_select.value)[1]
+  namespace = split("/", data.coder_parameter.os_select.value)[0]
+}
+
 resource "harvester_volume" "workspace" {
   name      = "coder-${local.username}-${data.coder_workspace.me.name}-workspace"
   namespace = var.vm-namespace
-  size      = "32Gi"
+  size      = "${data.coder_parameter.disk_select.value}Gi"
 }
 
 resource "harvester_virtualmachine" "coder-vm" {
@@ -345,11 +433,11 @@ resource "harvester_virtualmachine" "coder-vm" {
   hostname     = "coder-${local.username}-${data.coder_workspace.me.name}"
   namespace            = var.vm-namespace
   restart_after_update = true
-  cpu    = 4
-  memory = "8Gi"
+  cpu    = data.coder_parameter.cpu_select.value
+  memory = "${data.coder_parameter.mem_select.value}Gi"
 
-  efi         = true
-  secure_boot = true
+  efi         = lookup(data.harvester_image.vm_image.tags, "efi", "true") == "true" ? true : false
+  secure_boot = lookup(data.harvester_image.vm_image.tags, "efi", "true") == "true" ? true : false
 
   run_strategy = "RerunOnFailure"
   machine_type = "q35"
@@ -366,7 +454,7 @@ resource "harvester_virtualmachine" "coder-vm" {
     bus        = "virtio"
     boot_order = 1
 
-    image       = "harvester-public/ubuntu-server-noble-24.04"
+    image       = data.coder_parameter.os_select.value
     auto_delete = true
   }
 
