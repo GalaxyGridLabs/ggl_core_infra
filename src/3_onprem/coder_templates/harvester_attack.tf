@@ -25,7 +25,6 @@ provider "harvester" {
 }
 
 module "kasmvnc" {
-  count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder/kasmvnc/coder"
   version             = "1.2.2"
   agent_id            = coder_agent.dev.id
@@ -179,6 +178,7 @@ packages:
   - git
   - kali-desktop-xfce
   - libdatetime-perl
+  - kali-defaults
 write_files:
   - path: /etc/ssh/ca_user_key.pub
     content: |
@@ -235,7 +235,6 @@ data "harvester_image" "vm_image" {
 }
 
 resource "harvester_virtualmachine" "coder-vm" {
-  count        = data.coder_workspace.me.start_count
   name         = "coder-${local.username}-${data.coder_workspace.me.name}"
   hostname     = "coder-${local.username}-${data.coder_workspace.me.name}"
   namespace            = var.vm-namespace
