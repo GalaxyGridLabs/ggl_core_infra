@@ -55,13 +55,6 @@ locals {
     },
   ]
 
-  git_repos = [
-    {
-      name = "Realm",
-      value = "https://github.com/spellshift/realm.git"
-    },
-  ]
-
   home_dir = "/workspace"
   network_name = "harvester-public/harvester-public-net"
   image_namespace = "harvester-public"
@@ -138,86 +131,50 @@ data "coder_parameter" "disk_select" {
   }
 }
 
-# module "code-server" {
-#   count    = data.coder_workspace.me.start_count
-#   source   = "registry.coder.com/coder/code-server/coder"
-#   version  = "1.3.1"
-#   subdomain = false
-#   agent_id = coder_agent.dev[0].id
-# }
-
-# module "devcontainers-cli" {
-#   count    = data.coder_workspace.me.start_count
-#   source   = "dev.registry.coder.com/modules/devcontainers-cli/coder"
-#   agent_id = coder_agent.dev[0].id
-# }
-
-# module "aider" {
-#   count    = data.coder_workspace.me.start_count
-#   source   = "registry.coder.com/coder/aider/coder"
-#   version  = "1.1.2"
-#   agent_id = coder_agent.dev[0].id
-#   use_tmux    = true
-#   use_screen  = false
-#   ai_provider = "google"
-#   ai_model    = "gemini/gemini-2.5-pro" # Uses Aider's built-in alias for gpt-4o
-#   folder      = "${local.home_dir}/project"
-#   ai_api_key  = var.openai_api_key
-# }
-
-# module "coder-login" {
-#   count    = data.coder_workspace.me.start_count
-#   source   = "registry.coder.com/coder/coder-login/coder"
-#   version  = "1.1.0"
-#   agent_id = coder_agent.dev[0].id
-# }
-
-# module "gemini" {
-#   count    = data.coder_workspace.me.start_count
-#   source   = "registry.coder.com/coder-labs/gemini/coder"
-#   version  = "2.0.0"
-#   agentapi_version = "v0.3.3"
-#   agent_id = coder_agent.dev[0].id
-#   gemini_api_key = var.openai_api_key
-#   folder      = "${local.home_dir}/project"
-# }
-
-module "goose" {
-  source = "github.com/hulto/registry//registry/coder/modules/goose"
+module "devcontainers-cli" {
   count    = data.coder_workspace.me.start_count
-  # source           = "registry.coder.com/coder/goose/coder"
-  # version          = "2.1.1"
-  agent_id         = coder_agent.dev[0].id
-  folder           = "${local.home_dir}"
-  subdomain        = false
-  install_goose    = true
-  goose_provider   = "openai"
-  goose_model      = "qwen2.5-coder:7b"
-  pre_install_script = "echo 'LOGIN TO CLOUDFLARE ‼️'; cloudflared access login ${var.openwebui-domain} 2>&1 && /bin/bash -c \"nohup cloudflared access tcp --hostname ${var.openwebui-domain} --url 127.0.0.1:8080 2>/dev/null > /dev/null < /dev/null & disown %%\""
+  source   = "dev.registry.coder.com/modules/devcontainers-cli/coder"
+  agent_id = coder_agent.dev[0].id
 }
 
-# module "claude-code" {
+module "coder-login" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/coder-login/coder"
+  version  = "1.1.0"
+  agent_id = coder_agent.dev[0].id
+}
+
+
+# module "goose" {
+#   source = "github.com/hulto/registry//registry/coder/modules/goose"
 #   count    = data.coder_workspace.me.start_count
-#   source              = "registry.coder.com/coder/claude-code/coder"
-#   version             = "2.2.0"
-#   agent_id            = coder_agent.dev[0].id
-#   folder              = "${local.home_dir}"
-#   install_claude_code = true
-#   subdomain           = false
-#   claude_code_version = "latest"
+#   # source           = "registry.coder.com/coder/goose/coder"
+#   # version          = "2.1.1"
+#   agent_id         = coder_agent.dev[0].id
+#   folder           = "${local.home_dir}"
+#   subdomain        = false
+#   install_goose    = true
+#   goose_provider   = "openai"
+#   goose_model      = "qwen3:8b"
+#   pre_install_script = "echo 'LOGIN TO CLOUDFLARE ‼️'; cloudflared access login ${var.openwebui-domain} 2>&1 && /bin/bash -c \"nohup cloudflared access tcp --hostname ${var.openwebui-domain} --url 127.0.0.1:8080 2>/dev/null > /dev/null < /dev/null & disown %%\""
 # }
+
+module "claude-code" {
+  count    = data.coder_workspace.me.start_count
+  source              = "registry.coder.com/coder/claude-code/coder"
+  version             = "2.2.0"
+  agent_id            = coder_agent.dev[0].id
+  folder              = "${local.home_dir}"
+  install_claude_code = true
+  subdomain           = false
+  claude_code_version = "latest"
+}
 
 module "code-server" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/code-server/coder"
   version  = "1.3.1"
   subdomain = false
-  agent_id = coder_agent.dev[0].id
-}
-
-module "devcontainers-cli" {
-  count    = data.coder_workspace.me.start_count
-  source   = "dev.registry.coder.com/modules/devcontainers-cli/coder"
   agent_id = coder_agent.dev[0].id
 }
 
@@ -248,25 +205,25 @@ resource "coder_agent" "dev" {
     GIT_AUTHOR_EMAIL    = "${data.coder_workspace_owner.me.email}"
     GIT_COMMITTER_NAME  = coalesce(data.coder_workspace_owner.me.full_name, local.username)
     GIT_COMMITTER_EMAIL = "${data.coder_workspace_owner.me.email}"
-    # ANTHROPIC_API_KEY              = var.anthropic_api_key
-    GOOSE_TASK_PROMPT   = data.coder_parameter.ai_prompt.value
-    GOOSE_SYSTEM_PROMPT = <<-EOT
-      You are a helpful assistant that can help write code.
+    ANTHROPIC_API_KEY              = var.anthropic_api_key
+    # GOOSE_TASK_PROMPT   = data.coder_parameter.ai_prompt.value
+    # GOOSE_SYSTEM_PROMPT = <<-EOT
+    #   You are a helpful assistant that can help write code.
 
-      Run all long running tasks (e.g. npm run dev) in the background and not in the foreground.
+    #   Run all long running tasks (e.g. npm run dev) in the background and not in the foreground.
 
-      Periodically check in on background tasks.
+    #   Periodically check in on background tasks.
 
-      Notify Coder of the status of the task before and after your steps.
-    EOT
-    OPENAI_API_KEY = var.openai_api_key
-    OPENAI_HOST = "http://127.0.0.1:8080/api/"
-    # CODER_MCP_CLAUDE_API_KEY       = var.anthropic_api_key # or use a coder_parameter
-    # CODER_MCP_CLAUDE_TASK_PROMPT   = data.coder_parameter.ai_prompt.value
-    # CODER_MCP_APP_STATUS_SLUG      = "claude-code"
-    # CODER_MCP_CLAUDE_SYSTEM_PROMPT = <<-EOT
-    #   You are a helpful assistant that can help with code.
+    #   Notify Coder of the status of the task before and after your steps.
     # EOT
+    # OPENAI_API_KEY = var.openai_api_key
+    # OPENAI_HOST = "http://127.0.0.1:8080/api/"
+    CODER_MCP_CLAUDE_API_KEY       = var.anthropic_api_key # or use a coder_parameter
+    CODER_MCP_CLAUDE_TASK_PROMPT   = data.coder_parameter.ai_prompt.value
+    CODER_MCP_APP_STATUS_SLUG      = "claude-code"
+    CODER_MCP_CLAUDE_SYSTEM_PROMPT = <<-EOT
+      You are a helpful assistant that can help with code.
+    EOT
     AGENTAPI_ALLOWED_HOSTS = "*"
     AGENTAPI_ALLOWED_ORIGINS = "*"
 
