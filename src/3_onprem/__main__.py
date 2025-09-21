@@ -3,6 +3,7 @@
 import pulumi
 import pulumi_harvester as harvester
 from shared.coder.coder import Coder
+from shared.garm.garm import Garm
 from shared.harvester.images import create_all_images
 
 
@@ -15,7 +16,7 @@ def main():
     # Create a coder app
     coder = Coder("coder", "devops")
 
-    # Create coder tunnel
+    garm = Garm("garm", "garm-admin")
 
 
 if __name__ == "__main__":
