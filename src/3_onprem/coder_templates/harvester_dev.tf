@@ -152,10 +152,10 @@ resource "coder_agent" "dev" {
   }
 
   env = {
-    GIT_AUTHOR_NAME     = coalesce(data.coder_workspace_owner.me.full_name, local.username)
-    GIT_AUTHOR_EMAIL    = "${data.coder_workspace_owner.me.email}"
-    GIT_COMMITTER_NAME  = coalesce(data.coder_workspace_owner.me.full_name, local.username)
-    GIT_COMMITTER_EMAIL = "${data.coder_workspace_owner.me.email}"
+    # GIT_AUTHOR_NAME     = coalesce(data.coder_workspace_owner.me.full_name, local.username)
+    # GIT_AUTHOR_EMAIL    = "${data.coder_workspace_owner.me.email}"
+    # GIT_COMMITTER_NAME  = coalesce(data.coder_workspace_owner.me.full_name, local.username)
+    # GIT_COMMITTER_EMAIL = "${data.coder_workspace_owner.me.email}"
   }
 
   metadata {
