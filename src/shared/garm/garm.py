@@ -63,8 +63,10 @@ class Garm(pulumi.ComponentResource):
         # Rancher > Harvester > harvester > Project & Namespaces > garm > Edit config > Add > svcgarm > Project Member
 
         # Create a Harvester VM for the garm app
+        config = pulumi.Config()
 
         garm_config = pulumi.Output.all(
+            kubeconfig=config.require_secret("svcgarm_kubeconfig"),
             tunnel_token=garm_tunnel.token,
             jwtsecret=jwtsecret.result,
             dbpassword=dbpassword.result,
@@ -160,8 +162,7 @@ storage:
         - path: /etc/garm/harvester-kubeconfig.yaml
           mode: 0400
           contents:
-            inline: |
-                secret
+            inline: {base64.b64encode(args['kubeconfig'].encode()).decode()}
         - path: /etc/garm/cloudflared.env
           mode: 0400
           contents:
