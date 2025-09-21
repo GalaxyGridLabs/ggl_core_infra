@@ -94,6 +94,21 @@ systemd:
         RestartSec=5s
         [Install]
         WantedBy=multi-user.target
+    - name: setupscripts.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Run arbitrary setup scripts
+        After=docker.service
+        Requires=docker.service
+        Requires=data.mount
+        [Service]
+        TimeoutStartSec=0
+        WorkingDirectory=/etc/garm/
+        ExecStart=/etc/garm/setupscripts.sh
+        Restart=never
+        [Install]
+        WantedBy=multi-user.target
 storage:
     filesystems:
         - device: /dev/disk/by-path/pci-0000:02:00.0
@@ -159,7 +174,15 @@ storage:
           contents:
             inline: |
                 GARM_HTTP_ADDRESS: "0.0.0.0:{GARM_PORT}"
-        - path: /etc/garm/harvester-kubeconfig.yaml
+        - path: /etc/coder/setupscripts.sh
+          mode: 0500
+          contents:
+            inline: |
+                #!/bin/bash
+                cat /etc/garm/harvester-kubeconfig.yaml.b64 | base64 -d > /etc/garm/harvester-kubeconfig.yaml
+                systemctl disable setupscripts.service
+                touch /done
+        - path: /etc/garm/harvester-kubeconfig.yaml.b64
           mode: 0400
           contents:
             inline: {base64.b64encode(args['kubeconfig'].encode()).decode()}
