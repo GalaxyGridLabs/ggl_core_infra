@@ -130,18 +130,6 @@ IMAGES = {
         "arch": "amd64",
         "description": "FlatCar Container Linux (latest)",
     },
-    "flatcar-openstack": {
-        "url": "https://stable.release.flatcar-linux.net/amd64-usr/current/flatcar_production_openstack_image.img",
-        "os": "flatcar",
-        "arch": "amd64",
-        "description": "FlatCar Container Linux Openstack (latest)",
-    },
-    "flatcar-qemu": {
-        "url": "https://stable.release.flatcar-linux.net/amd64-usr/current/flatcar_production_qemu_uefi_efi_code.qcow2",
-        "os": "flatcar",
-        "arch": "amd64",
-        "description": "FlatCar Container Linux Qemu (latest)",
-    },
 }
 
 IMAGES_PULUMI = {}
