@@ -33,7 +33,6 @@ class Tunnel(pulumi.ComponentResource):
             account_id=config.require("account_id"), tunnel_id=tunnel.id
         ).token
 
-        pulumi.export("tunnel_id", tunnel.id)
         tunnel.id.apply(
             lambda id: cloudflare.DnsRecord(
                 name,
