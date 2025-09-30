@@ -12,7 +12,7 @@ from shared.harvester.networks import DEFAULT_NETWORK
 from shared.cloudflare_tunnel.tunnel import Tunnel
 
 GARM_IMAGE = "ghcr.io/cloudbase/garm:v0.1.6@sha256:d13499ea49f7a0433ac2085205bd82498b9411977d32805eec115aab833ebcd8"
-GARM_IMAGE = "ghcr.io/hulto/garm-provider-harvester:0.0.2"
+GARM_IMAGE = "ghcr.io/hulto/garm-provider-harvester:0.0.3"
 GARM_DISK_SIZE = "16Gi"
 GARM_PORT = 80
 
@@ -174,7 +174,7 @@ storage:
           contents:
             inline: |
                 GARM_HTTP_ADDRESS: "0.0.0.0:{GARM_PORT}"
-        - path: /etc/coder/setupscripts.sh
+        - path: /etc/garm/setupscripts.sh
           mode: 0500
           contents:
             inline: |
@@ -302,6 +302,14 @@ garm-cli init --name="local_garm" \
   --username root --email root@garm.astral-labs.work \
   --password '[passsword]'
 
+# or
+
+garm-cli profile add --name="local_garm" \
+  --url https://garm.astral-labs.work \
+  --username root --email root@garm.astral-labs.work \
+  --password '[passsword]'
+
+
 # Requires a PAT with:
 # - read metadata
 # - Read & Write Administration
@@ -339,8 +347,8 @@ garm-cli pool create \
     --os-type linux \
     --os-arch amd64 \
     --enabled=true \
-    --flavor medium \
-    --image harvester-public/image-fv5rd \
+    --flavor custom-4c-16Gi-128Gi \
+    --image harvester-public/image-nczsh \
     --min-idle-runners 1 \
     --repo 10e58c2a-1485-41d7-82f9-a894e6ba903d \
     --tags gcp,linux \
