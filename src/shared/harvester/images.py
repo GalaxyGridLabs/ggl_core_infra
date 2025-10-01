@@ -130,6 +130,16 @@ IMAGES = {
         "arch": "amd64",
         "description": "FlatCar Container Linux (latest)",
     },
+    "windows25-runner": {
+        "url": "https://md-gfmhgbfz5m5l.z23.blob.storage.azure.net/g2wqrnpqqshn/abcd?sv=2018-03-28&sr=b&si=71bbbf8f-e2dd-4b6f-a700-da2fad4819b9&sig=zsUgX0iZqpDnDs5AJYj52wKL%2Fx257qslppiIERwNBZE%3D",
+        "os": "windows",
+        "arch": "amd64",
+        "description": "Windows Server 2025 Github Actions Runner",
+        "timeouts": {
+            "create": "36000",
+            "update": "36000",
+        },
+    },
 }
 
 IMAGES_PULUMI = {}
