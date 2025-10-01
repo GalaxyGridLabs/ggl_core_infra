@@ -1,7 +1,9 @@
+import pulumi
 import pulumi_harvester as harvester
 
 DEFAULT_IMAGE = "harvester-public/ubuntu-server-noble-24.04"
 DEFAULT_CONTAINER_IMAGE = "harvester-public/flatcar-latest"
+DEFAULT_STORAGE_CLASS = "best-effort"
 
 IMAGES = {
     "ubuntu-server-noble-24.04": {
@@ -9,6 +11,7 @@ IMAGES = {
         "os": "ubuntu",
         "arch": "amd64",
         "description": "Ubuntu Server 24.04 LTS (Noble)",
+        "storage_class_name": "harvester-longhorn",
     },
     "ubuntu-server-jammy-22.04": {
         "url": "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img",
@@ -129,16 +132,13 @@ IMAGES = {
         "os": "flatcar",
         "arch": "amd64",
         "description": "FlatCar Container Linux (latest)",
+        "storage_class_name": "harvester-longhorn",
     },
-    "windows25-runner": {
-        "url": "https://md-gfmhgbfz5m5l.z23.blob.storage.azure.net/g2wqrnpqqshn/abcd?sv=2018-03-28&sr=b&si=71bbbf8f-e2dd-4b6f-a700-da2fad4819b9&sig=zsUgX0iZqpDnDs5AJYj52wKL%2Fx257qslppiIERwNBZE%3D",
+    "win11": {
+        "url": "https://mirrors.rit.edu/oszoo/Win11-21H2.qcow2",
         "os": "windows",
         "arch": "amd64",
-        "description": "Windows Server 2025 Github Actions Runner",
-        "timeouts": {
-            "create": "36000",
-            "update": "36000",
-        },
+        "description": "Windows 11 attack",
     },
 }
 
@@ -189,10 +189,18 @@ def create_image(name, image_def):
         namespace="harvester-public",
         source_type="download",
         url=image_def["url"],
+        storage_class_name=image_def.get("storage_class_name", DEFAULT_STORAGE_CLASS),
         tags={
             "os-type": image_def["os"],
             "arch": image_def["arch"],
         },
+        timeouts={
+            "create": "30m",
+            "update": "30m",
+        },
+        opts=pulumi.ResourceOptions(
+            delete_before_replace=True,
+        ),
     )
 
 
