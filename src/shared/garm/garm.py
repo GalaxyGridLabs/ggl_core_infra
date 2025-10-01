@@ -12,7 +12,7 @@ from shared.harvester.networks import DEFAULT_NETWORK
 from shared.cloudflare_tunnel.tunnel import Tunnel
 
 GARM_IMAGE = "ghcr.io/cloudbase/garm:v0.1.6@sha256:d13499ea49f7a0433ac2085205bd82498b9411977d32805eec115aab833ebcd8"
-GARM_IMAGE = "ghcr.io/hulto/garm-provider-harvester:0.0.3"
+GARM_IMAGE = "ghcr.io/hulto/garm-provider-harvester:0.0.4"
 GARM_DISK_SIZE = "16Gi"
 GARM_PORT = 80
 
@@ -296,7 +296,6 @@ kernel_arguments:
 wget -O garm-cli.tgz https://github.com/cloudbase/garm/releases/download/v0.1.6/garm-cli-linux-amd64.tgz
 sudo tar -xzvf ./garm-cli.tgz -C /usr/bin/
 
-
 garm-cli init --name="local_garm" \
   --url https://garm.astral-labs.work \
   --username root --email root@garm.astral-labs.work \
@@ -308,6 +307,40 @@ garm-cli profile add --name="local_garm" \
   --url https://garm.astral-labs.work \
   --username root --email root@garm.astral-labs.work \
   --password '[passsword]'
+
+# Setup gitea
+garm-cli gitea endpoint create --name galaxygridlabs --base-url https://git.galaxygridlabs.com --api-base-url https://git.galaxygridlabs.com
+
+LOGIN=$(curl -s -X POST https://git.galaxygridlabs.com/api/v1/users/garm-server/tokens \
+  -u 'garm-server:X2d@eVCfunN2r3qTBhtC3puk' \
+  -H "Content-Type: application/json" \
+  -d '{"name": "autotoken", "scopes": ["write:repository", "write:organization"]}')
+
+TOKEN=$(echo $LOGIN | jq -r '.sha1')
+garm-cli gitea credentials add \
+    --endpoint galaxygridlabs \
+    --auth-type pat \
+    --pat-oauth-token $TOKEN \
+    --name autotoken \
+    --description "Gitea token"
+
+# Must be owner of the org
+garm-cli org add --credentials autotoken \
+    --forge-type gitea --install-webhook \
+    --random-webhook-secret \
+    --pool-balancer-type roundrobin \
+    --name spellshift
+
+garm-cli pool create \
+    --os-type linux \
+    --os-arch amd64 \
+    --enabled=true \
+    --flavor custom-4c-16Gi-128Gi \
+    --image harvester-public/image-nczsh \
+    --min-idle-runners 1 \
+    --org bce69ebd-efa9-4b87-85bd-b24f9488e8e7 \
+    --tags linux,ubuntu,ubuntu24,ubuntu-latest \
+    --provider-name harvester
 
 
 # Requires a PAT with:
@@ -328,18 +361,6 @@ garm-cli repository add \
     --install-webhook \
     --pool-balancer-type roundrobin \
     --random-webhook-secret
-
-garm-cli pool create \
-    --os-type linux \
-    --os-arch amd64 \
-    --enabled=true \
-    --flavor e2-small \
-    --image projects/ubuntu-os-cloud/global/images/ubuntu-minimal-2404-noble-amd64-v20250828 \
-    --min-idle-runners 1 \
-    --repo 10e58c2a-1485-41d7-82f9-a894e6ba903d \
-    --tags gcp,linux \
-    --provider-name gcp
-
 
 # harvester-public/ubuntu-server-noble-24.04
 
