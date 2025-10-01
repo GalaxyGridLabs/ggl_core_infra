@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import re
 import pulumi
 import pulumi_harvester as harvester
@@ -227,6 +228,11 @@ kernel_arguments:
             opts=pulumi.ResourceOptions(parent=self),
         )
 
+        def hashit(input_str):
+            h = hashlib.new("md5")
+            h.update(input_str.encode("utf-8"))
+            return str(h.hexdigest())
+
         coder_vm = harvester.Virtualmachine(
             name,
             name=name,
@@ -254,6 +260,11 @@ kernel_arguments:
                     "hot_plug": True,
                 },
             ],
+            tags={
+                "hash": coder_cloudinit.user_data.apply(
+                    lambda user_data: hashit(user_data)
+                )
+            },
             network_interfaces=[
                 harvester.VirtualmachineNetworkInterfaceArgs(
                     name="nic1",
